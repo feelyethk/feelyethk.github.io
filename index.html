@@ -1,0 +1,2660 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>港跡 Skywalker - 香港及世界野外探險檔案庫</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght=300;400;500;700;900&family=Share+Tech+Mono&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #050811;
+            color: #f1f5f9;
+            background-image: 
+                radial-gradient(circle at 50% 0%, #111827 0%, #050811 100%),
+                linear-gradient(rgba(16, 185, 129, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 30px 30px, 30px 30px;
+        }
+
+        .mono-font {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* 3:2 完美相片比例（硬朗直角邊） */
+        .ratio-3-2 {
+            aspect-ratio: 3 / 2;
+            object-fit: cover;
+            border-radius: 0px !important;
+        }
+
+        /* 移除卡片與輸入框圓角 */
+        .sharp-edge {
+            border-radius: 0px !important;
+        }
+
+        /* 自定義滾動條 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #090e1a;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: var(--theme-color, #10b981);
+            border-radius: 0px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #34d399;
+        }
+
+        /* 隱藏滾動條但保持滾動功能 (用於分頁導航行) */
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        #map {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        :root {
+            --theme-color: #10b981;
+        }
+
+        /* 美化 Leaflet Popup */
+        .leaflet-popup-content-wrapper {
+            background: #0b1329 !important;
+            color: #f1f5f9 !important;
+            border: 1px solid #1e293b !important;
+            border-radius: 0px !important;
+        }
+        .leaflet-popup-tip {
+            background: #0b1329 !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col custom-scrollbar">
+
+    <!-- 頂部導航列 (玻璃擬態 backdrop-blur) -->
+    <header class="sticky top-0 z-[1000] bg-slate-950/80 backdrop-blur-md border-b border-emerald-950/40 shadow-2xl h-20">
+        <div class="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
+            
+            <!-- 左上角：網站名稱 -->
+            <a href="#" onclick="switchTab('home-tab')" class="flex items-center flex-shrink-0 group">
+                <div>
+                    <h1 id="brand-name" class="text-base md:text-lg font-black tracking-widest text-emerald-400 transition-colors duration-300 group-hover:text-emerald-300">港跡．SKYWALKER</h1>
+                    <span id="brand-subtitle" class="text-[8px] text-slate-500 block tracking-[0.25em] mt-0.5">十年千回．香港野外秘密探險誌</span>
+                </div>
+            </a>
+
+            <!-- 右上角：搜尋器 + 選單按鈕 -->
+            <div class="flex items-center space-x-3">
+                <!-- 搜尋器 -->
+                <div class="relative w-40 md:w-56">
+                    <input type="text" id="global-search" oninput="triggerGlobalSearch()" placeholder="搜尋日誌、外遊、探索..." class="w-full bg-slate-950/90 border border-slate-800 focus:border-emerald-500/80 px-3 py-1.5 pl-8 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition duration-300 sharp-edge">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-600 text-xs"></i>
+                </div>
+
+                <!-- 選單按鈕 -->
+                <button onclick="toggleNavDrawer()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-emerald-400 border border-slate-800 transition-all duration-300 flex items-center gap-2 text-xs font-bold sharp-edge">
+                    <span class="tracking-widest">選單</span>
+                    <i class="fa-solid fa-bars-staggered text-xs"></i>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- 橫向滑動選單列 (具有極客感的微底線美學) -->
+    <nav id="horizontal-nav-bar" class="sticky top-20 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-900/60 py-2.5 overflow-x-auto scrollbar-none">
+        <div class="max-w-7xl mx-auto px-4 flex items-center space-x-1 md:space-x-2 whitespace-nowrap" id="horizontal-nav-links">
+            <!-- JS動態渲染 -->
+        </div>
+    </nav>
+
+    <!-- 站長管理模式提示條 -->
+    <div id="admin-banner" class="hidden bg-red-950/90 backdrop-blur-sm border-b border-red-800 text-red-200 px-4 py-2 text-xs flex flex-wrap justify-between items-center gap-2 z-50">
+        <div class="flex items-center space-x-2">
+            <span class="animate-pulse inline-block w-2 h-2 bg-red-500"></span>
+            <span class="font-medium"><strong>管理權限已解鎖</strong> ── 可隨時調整首頁區塊、各頁副標題、配色及內文。</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <button onclick="openTabManagerModal()" class="bg-slate-900 hover:bg-slate-800 text-slate-100 px-2.5 py-1 border border-slate-700 text-[10px] font-bold"><i class="fa-solid fa-folder-tree mr-1"></i>管理分頁</button>
+            <button onclick="openThemeSettingsModal()" class="bg-slate-900 hover:bg-slate-800 text-slate-100 px-2.5 py-1 border border-slate-700 text-[10px] font-bold"><i class="fa-solid fa-palette mr-1"></i>編輯看板與副標題</button>
+            <button onclick="exportData()" class="bg-slate-900 hover:bg-slate-800 text-slate-100 px-2.5 py-1 border border-slate-700 text-[10px] font-bold"><i class="fa-solid fa-download mr-1"></i>備份資料</button>
+            <label class="bg-slate-900 hover:bg-slate-800 text-slate-100 px-2.5 py-1 border border-slate-700 text-[10px] font-bold cursor-pointer">
+                <i class="fa-solid fa-upload mr-1"></i>導入備份
+                <input type="file" onchange="importData(event)" class="hidden" accept=".json">
+            </label>
+            <button onclick="exitAdminMode()" class="bg-red-800 hover:bg-red-700 text-white px-3 py-1 font-bold text-[10px] tracking-widest sharp-edge">退出編輯</button>
+        </div>
+    </div>
+
+    <!-- 右側滑出式「選單」 -->
+    <div id="nav-drawer" class="fixed inset-y-0 right-0 w-80 bg-slate-950/95 backdrop-blur-lg border-l border-slate-800 shadow-2xl z-[2000] transform translate-x-full transition-transform duration-300 flex flex-col justify-between">
+        <div class="p-6 border-b border-slate-900 flex justify-between items-center">
+            <span class="text-xs font-black tracking-[0.2em] text-slate-500 uppercase">選單</span>
+            <button onclick="toggleNavDrawer()" class="text-slate-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+
+        <nav id="drawer-menu-links" class="flex-1 p-6 space-y-3 overflow-y-auto custom-scrollbar">
+            <!-- JS動態寫入 -->
+        </nav>
+
+        <div class="p-6 border-t border-slate-900 bg-slate-950/60 text-center">
+            <button id="admin-trigger-link" onclick="handleAdminLinkClick()" class="text-[10px] font-bold text-slate-600 hover:text-emerald-400 transition-colors tracking-widest">
+                編輯模式
+            </button>
+        </div>
+    </div>
+    <div id="nav-drawer-overlay" onclick="toggleNavDrawer()" class="fixed inset-0 bg-black/80 z-[1900] hidden"></div>
+
+    <!-- 主區容器 -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
+        
+        <!-- ==================== 分頁 1: 首頁 ==================== -->
+        <section id="home-tab" class="tab-content space-y-12">
+            <!-- 橫幅看板 -->
+            <div class="relative bg-slate-950 border border-slate-900 p-8 md:p-20 text-center space-y-4 shadow-2xl sharp-edge overflow-hidden">
+                <div class="admin-only hidden absolute top-4 right-4 z-10">
+                    <button onclick="editHeroSettings()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-bold transition sharp-edge"><i class="fa-solid fa-pen mr-1"></i>編輯看板</button>
+                </div>
+                <div id="hero-image-underlay" class="absolute inset-0 opacity-15 bg-cover bg-center mix-blend-luminosity filter saturate-50 scale-105 transition-all duration-1000" style="background-image: url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80')"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                
+                <div class="relative z-10 max-w-3xl mx-auto space-y-4">
+                    <h2 id="home-hero-title" class="text-3xl md:text-5xl font-black text-white leading-tight tracking-wide pt-4">尋回香港地圖上被遺忘的角落</h2>
+                    <div class="w-12 h-[2px] bg-emerald-500 mx-auto my-4"></div>
+                    <p id="home-hero-subtitle" class="text-xs md:text-sm text-slate-400 font-light leading-relaxed max-w-2xl mx-auto">十年千回，深入那些被大自然重新擁抱的歷史遺跡、高聳入雲的標高柱，和從未於網絡公開的極秘祕境。</p>
+                </div>
+            </div>
+
+            <!-- 首頁圖文區塊 -->
+            <div id="home-blocks" class="space-y-10">
+                <!-- JS 動態寫入 -->
+            </div>
+
+            <!-- 站長追加控制台 -->
+            <div class="admin-only hidden border border-dashed border-slate-800 p-6 text-center bg-slate-950/40 sharp-edge">
+                <p class="text-xs text-slate-500 mb-3">🛠️ 站長工具：您可以自由在下方追加圖文段落</p>
+                <div class="flex justify-center space-x-3">
+                    <button onclick="addBlock('home-tab', 'text')" class="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs font-bold border border-slate-800 transition-colors sharp-edge"><i class="fa-solid fa-font mr-1.5 text-emerald-500"></i>追加純文字段落</button>
+                    <button onclick="addBlock('home-tab', 'image-text')" class="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs font-bold border border-slate-800 transition-colors sharp-edge"><i class="fa-solid fa-image mr-1.5 text-emerald-500"></i>追加圖文混合區塊</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 分頁 2: 日誌 (已更名) ==================== -->
+        <section id="diary-tab" class="tab-content hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between pb-5 border-b border-slate-900 gap-4">
+                <div class="space-y-1.5">
+                    <h2 class="text-2xl font-black text-white tracking-wide">日誌庫</h2>
+                    <p id="sub-diary-tab" class="text-xs text-slate-500 max-w-2xl">十年千回探索，按到訪日期、距離及各路線標籤（山線、水線、海岸等）進行精確篩選。</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="openArticleEditor('探索日誌')" class="admin-only hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all duration-300 sharp-edge flex items-center gap-1.5 shadow-lg shadow-emerald-950/50"><i class="fa-solid fa-plus text-[10px]"></i>撰寫新日誌</button>
+                    
+                    <div class="flex flex-wrap items-center gap-2 bg-slate-950 px-3 py-2 border border-slate-900 text-xs sharp-edge">
+                        <span class="text-slate-600">每頁：</span>
+                        <select id="diary-page-size" onchange="changeDiaryFilter()" class="bg-transparent text-slate-300 focus:outline-none cursor-pointer">
+                            <option value="10">10 篇</option>
+                            <option value="25">25 篇</option>
+                            <option value="50">50 篇</option>
+                        </select>
+                        <span class="text-slate-800">|</span>
+                        
+                        <span class="text-slate-600">排序：</span>
+                        <select id="diary-sort" onchange="changeDiaryFilter()" class="bg-transparent text-slate-300 focus:outline-none cursor-pointer font-bold">
+                            <option value="date-desc">日期 (新到舊)</option>
+                            <option value="date-asc">日期 (舊到新)</option>
+                            <option value="dist-desc">步行距離 (長到短)</option>
+                            <option value="dist-asc">步行距離 (短到長)</option>
+                        </select>
+                        <span class="text-slate-800">|</span>
+
+                        <span class="text-slate-600">分類：</span>
+                        <select id="diary-cat-filter" onchange="changeDiaryFilter()" class="bg-transparent text-slate-300 focus:outline-none cursor-pointer">
+                            <option value="All">全部顯示</option>
+                            <option value="香港遠足">香港遠足 (山線)</option>
+                            <option value="香港石澗">香港石澗 (水線)</option>
+                            <option value="香港海岸">香港海岸 (海線)</option>
+                            <option value="香港廢墟">香港廢墟</option>
+                            <option value="洞穴探索">洞穴探索</option>
+                            <option value="城市探索">城市探索</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日誌格清單 -->
+            <div id="diary-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                <!-- 由 JS 動態生成 -->
+            </div>
+
+            <!-- 分頁導航 -->
+            <div id="diary-pagination" class="flex justify-center items-center space-x-2 pt-8"></div>
+        </section>
+
+        <!-- ==================== 分頁 3: 探索 ==================== -->
+        <section id="explore-tab" class="tab-content hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between pb-5 border-b border-slate-900 gap-4">
+                <div class="space-y-1.5">
+                    <h2 class="text-2xl font-black text-white tracking-wide">探索檔案庫</h2>
+                    <p id="sub-explore-tab" class="text-xs text-slate-500 max-w-2xl">針對各大主題（廢墟、石澗等）建立的獨立紀實篇章，探索未知角落。</p>
+                </div>
+                <button onclick="openArticleEditor('探索')" class="admin-only hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all duration-300 sharp-edge"><i class="fa-solid fa-plus mr-1"></i>發佈探索篇章</button>
+            </div>
+
+            <!-- 主題分類選擇 -->
+            <div id="explore-theme-selector-bar" class="flex flex-wrap gap-2 pb-2">
+                <!-- JS 動態加載 -->
+            </div>
+
+            <!-- 特輯文章列表 -->
+            <div id="explore-grid" class="grid grid-cols-1 gap-8 pt-4">
+                <!-- JS 動態寫入 -->
+            </div>
+        </section>
+
+        <!-- ==================== 分頁 4: 照片集 ==================== -->
+        <section id="gallery-tab" class="tab-content hidden space-y-6">
+            <div class="flex justify-between items-end pb-5 border-b border-slate-900">
+                <div class="space-y-1.5">
+                    <h2 class="text-2xl font-black text-white tracking-wide">珍貴野外相冊</h2>
+                    <p id="sub-gallery-tab" class="text-xs text-slate-500">不修剪圓角，還原最真實的紀實相片。提供全螢幕幻燈片播放。</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="startSlideshow()" class="px-3.5 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/25 text-xs font-bold transition-all duration-300 flex items-center sharp-edge">
+                        <i class="fa-solid fa-play mr-1.5"></i> 隨機放映相簿
+                    </button>
+                    <button onclick="openGalleryUploadModal()" class="admin-only hidden px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors sharp-edge">
+                        <i class="fa-solid fa-upload mr-1.5"></i> 上傳相片
+                    </button>
+                </div>
+            </div>
+
+            <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
+                <!-- JS 動態加載 -->
+            </div>
+        </section>
+
+        <!-- ==================== 分頁 5: Kill Bill地圖 (已更名) ==================== -->
+        <section id="map-tab" class="tab-content hidden flex flex-col space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end pb-5 border-b border-slate-900 gap-2">
+                <div class="space-y-1.5">
+                    <h2 class="text-2xl font-black text-white tracking-wide">Kill Bill地圖</h2>
+                    <p id="sub-map-tab" class="text-xs text-slate-500">互動標記到訪過的測量點與標高柱。地圖點擊即可精確登錄位置。</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-500 font-bold">標高柱屬性：</span>
+                    <select id="map-type-filter" onchange="renderMapAndLists()" class="bg-slate-950 border border-slate-800 px-3 py-1.5 text-xs text-slate-300 focus:outline-none sharp-edge">
+                        <option value="All">顯示全部</option>
+                        <option value="Type A">Type A 標高柱</option>
+                        <option value="Type B">Type B 標高柱</option>
+                        <option value="導線站">導線站</option>
+                        <option value="舊款">舊款石碑/測點</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 地圖本體 -->
+            <div class="relative w-full h-[450px] border border-slate-900 shadow-2xl sharp-edge bg-slate-950">
+                <div id="map" class="w-full h-full"></div>
+            </div>
+
+            <!-- 列表 -->
+            <div class="bg-slate-950/60 border border-slate-900 p-5 flex flex-col h-[320px] sharp-edge">
+                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.25em] mb-4 flex items-center">
+                    <span class="inline-block w-1.5 h-1.5 bg-emerald-500 mr-2"></span> 已到訪測地地標清單 (<span id="kb-count" class="mono-font text-emerald-400">0</span>)
+                </h3>
+                <div class="flex-1 overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs text-slate-400">
+                        <thead class="bg-slate-950 text-[10px] text-slate-500 uppercase tracking-widest sticky top-0 border-b border-slate-900">
+                            <tr>
+                                <th class="p-3">編號</th>
+                                <th class="p-3">地方名字</th>
+                                <th class="p-3">分類/屬性</th>
+                                <th class="p-3">到訪日期</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="killbill-table-body" class="divide-y divide-slate-900/50">
+                            <!-- JS 動態加載 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 分頁 6: 外遊篇 ==================== -->
+        <section id="travel-tab" class="tab-content hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between pb-5 border-b border-slate-900 gap-4">
+                <div class="space-y-1.5">
+                    <h2 class="text-2xl font-black text-white tracking-wide">外遊篇</h2>
+                    <p id="sub-travel-tab" class="text-xs text-slate-500 max-w-2xl">走訪世界各地的探險紀實、異國廢墟與文化遺產。</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="openArticleEditor('外遊篇')" class="admin-only hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all duration-300 sharp-edge flex items-center gap-1.5 shadow-lg shadow-emerald-950/50"><i class="fa-solid fa-plus text-[10px]"></i>撰寫新外遊誌</button>
+                    
+                    <div class="flex flex-wrap items-center gap-2 bg-slate-950 px-3 py-2 border border-slate-900 text-xs sharp-edge">
+                        <span class="text-slate-600">排序：</span>
+                        <select id="travel-sort" onchange="changeTravelFilter()" class="bg-transparent text-slate-300 focus:outline-none cursor-pointer font-bold">
+                            <option value="date-desc">日期 (新到舊)</option>
+                            <option value="date-asc">日期 (舊到新)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 外遊日誌列表 -->
+            <div id="travel-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                <!-- 由 JS 動態生成 -->
+            </div>
+        </section>
+
+        <!-- ==================== 分頁 7: 隨筆 (最右側、外遊篇右側) ==================== -->
+        <section id="other-tab" class="tab-content hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between pb-5 border-b border-slate-900 gap-4">
+                <div class="space-y-1.5">
+                    <h2 class="text-2xl font-black text-white tracking-wide">隨筆</h2>
+                    <p class="text-xs text-slate-500 max-w-2xl">野外探險心得、裝備分享與探險備忘錄。</p>
+                </div>
+                <button onclick="openArticleEditor('隨筆')" class="admin-only hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all duration-300 sharp-edge"><i class="fa-solid fa-plus mr-1"></i>發佈新隨筆</button>
+            </div>
+
+            <!-- 隨筆文章清單 -->
+            <div id="other-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                <!-- 由 JS 動態生成 -->
+            </div>
+        </section>
+
+        <!-- ==================== 自定義分頁動態生成區 ==================== -->
+        <div id="custom-tabs-container" class="space-y-12">
+            <!-- 動態生成自訂分頁 -->
+        </div>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="bg-slate-950 border-t border-slate-900/60 py-10 text-center text-xs text-slate-500 mt-16 flex-shrink-0">
+        <div class="max-w-7xl mx-auto px-4 space-y-3">
+            <div class="w-10 h-[1px] bg-emerald-500/30 mx-auto"></div>
+            <p id="footer-bio-text" class="leading-relaxed max-w-2xl mx-auto font-light">本站為非商業性質探險風情與歷史文檔彙整，旨在啟發及教育下一代珍惜香港及世界自然與歷史文化遺蹟。</p>
+            <p id="footer-copy-text" class="text-[10px] text-slate-700 tracking-wider">© 2026 港跡 Skywalker. 致敬「天行足跡」精神理念。</p>
+        </div>
+    </footer>
+
+    <!-- ==================== (MODAL 0): 搜尋結果視窗 ==================== -->
+    <div id="search-results-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[2500] flex justify-center items-start p-4 md:p-12 hidden overflow-y-auto">
+        <div class="bg-slate-950 border border-slate-900 max-w-2xl w-full p-6 space-y-4 shadow-2xl sharp-edge mt-12">
+            <div class="flex justify-between items-center border-b border-slate-900 pb-3">
+                <h3 class="font-bold text-white text-sm tracking-wider flex items-center"><i class="fa-solid fa-magnifying-glass text-emerald-500 mr-2.5"></i>搜尋結果</h3>
+                <button onclick="closeSearchModal()" class="text-slate-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="search-results-body" class="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- 搜尋結果內容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 1): 密碼驗證 (簡化極簡版) ==================== -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[3000] flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 max-w-sm w-full p-6 border border-slate-800 shadow-2xl sharp-edge">
+            <div class="text-center mb-6">
+                <h3 class="font-bold text-base text-white tracking-wider">請輸入密碼</h3>
+            </div>
+            <form id="login-form" onsubmit="handleLoginVerify(event)" class="space-y-4">
+                <input type="password" id="admin-password-input" placeholder="密碼" required class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-sm text-center text-white focus:outline-none focus:border-emerald-500 sharp-edge">
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs sharp-edge hover:bg-slate-700 transition">取消</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition shadow-lg shadow-emerald-950/50">驗證</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 2): 自定義分頁管理器 ==================== -->
+    <div id="tab-manager-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[2000] flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 max-w-md w-full border border-slate-800 p-6 space-y-4 shadow-2xl sharp-edge">
+            <h3 class="font-bold text-white text-sm pb-2 border-b border-slate-800 tracking-wider">分頁數量與導航設定</h3>
+            <div class="space-y-3">
+                <label class="block text-xs text-slate-400">目前可用的分頁列表：</label>
+                <div id="tab-manage-list" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                    <!-- JS 動態載入 -->
+                </div>
+                <div class="border-t border-slate-800 pt-3">
+                    <label class="block text-xs text-slate-400 mb-1">新增自定義分頁：</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="new-tab-name-input" placeholder="分頁名稱..." class="flex-1 bg-slate-950 border border-slate-800 px-3 py-1.5 text-xs text-white sharp-edge">
+                        <button onclick="createNewTab()" class="px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition">確認新增</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button onclick="closeTabManagerModal()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs sharp-edge hover:bg-slate-700 transition">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 3): 網站設定與各頁副標題、頁尾編輯 ==================== -->
+    <div id="theme-settings-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[2000] flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 max-w-lg w-full p-6 space-y-4 shadow-2xl sharp-edge overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <h3 class="font-bold text-white text-sm pb-2 border-b border-slate-800 tracking-wider">網站設定與內容文字編輯</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">網站主要名稱 (Brand Name)</label>
+                    <input type="text" id="theme-brand-name" class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">網站副標題 (Brand Subtitle)</label>
+                    <input type="text" id="theme-brand-subtitle" class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">自訂主題配色 (主要色彩)</label>
+                    <input type="color" id="theme-custom-picker" class="w-full h-8 bg-transparent cursor-pointer">
+                </div>
+                <div class="border-t border-slate-850 pt-3">
+                    <span class="text-xs font-bold text-emerald-400 block mb-2 tracking-wider">編輯各頁副標題</span>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1">日誌副標題</label>
+                            <input type="text" id="edit-sub-diary" class="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1">探索篇副標題</label>
+                            <input type="text" id="edit-sub-explore" class="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1">照片集副標題</label>
+                            <input type="text" id="edit-sub-gallery" class="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1">Kill Bill地圖副標題</label>
+                            <input type="text" id="edit-sub-map" class="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1">外遊篇副標題</label>
+                            <input type="text" id="edit-sub-travel" class="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge">
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t border-slate-850 pt-3">
+                    <span class="text-xs font-bold text-emerald-400 block mb-2 tracking-wider">編輯頁尾內容</span>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1">頁尾介紹文案</label>
+                            <textarea id="edit-footer-bio" rows="2" class="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1">頁尾版權聲明</label>
+                            <input type="text" id="edit-footer-copy" class="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button onclick="saveThemeSettings()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition">保存更動</button>
+                <button onclick="closeThemeSettingsModal()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs sharp-edge hover:bg-slate-700 transition">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 4): 萬能圖文區塊編輯器 ==================== -->
+    <div id="block-editor-modal" class="fixed inset-0 bg-slate-950/90 z-[2000] flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 max-w-xl w-full p-6 space-y-4 shadow-2xl sharp-edge overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <h3 class="font-bold text-white text-sm pb-2 border-b border-slate-850 tracking-wider">編輯圖文排版區塊</h3>
+            <input type="hidden" id="edit-block-tab-id">
+            <input type="hidden" id="edit-block-id">
+            <input type="hidden" id="edit-block-type">
+
+            <div class="space-y-4">
+                <div class="p-3 bg-slate-950 border border-slate-800 space-y-3">
+                    <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">標題格式</span>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">小標題文字</label>
+                        <input type="text" id="edit-block-title" class="w-full bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">標題文字大小</label>
+                            <select id="edit-block-title-size" class="w-full bg-slate-900 border border-slate-800 px-2 py-1 text-xs text-white sharp-edge">
+                                <option value="text-sm">小 (Small)</option>
+                                <option value="text-base">中 (Normal)</option>
+                                <option value="text-xl">大 (Large)</option>
+                                <option value="text-2xl">特大 (Extra Large)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center pt-5">
+                            <label class="flex items-center space-x-2 text-xs text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="edit-block-title-bold" class="accent-emerald-500">
+                                <span class="tracking-wide">啟用粗體 (Bold)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-slate-950 border border-slate-800 space-y-3">
+                    <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">內文格式</span>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">詳細說明內容</label>
+                        <textarea id="edit-block-content" rows="5" class="w-full bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">內文大小</label>
+                            <select id="edit-block-content-size" class="w-full bg-slate-900 border border-slate-800 px-2 py-1 text-xs text-white sharp-edge">
+                                <option value="text-xs">小 (12px)</option>
+                                <option value="text-sm">中 (14px)</option>
+                                <option value="text-base">大 (16px)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center pt-5">
+                            <label class="flex items-center space-x-2 text-xs text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="edit-block-content-bold" class="accent-emerald-500">
+                                <span class="tracking-wide">啟用粗體 (Bold)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="block-img-settings-field" class="p-3 bg-slate-950 border border-slate-800 space-y-3 hidden">
+                    <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">插圖格式 (支援直接貼上 Imgur)</span>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">圖片網址 (貼 Imgur 普通連結亦會自動轉換)</label>
+                        <input type="url" id="edit-block-image" placeholder="https://imgur.com/..." class="w-full bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">圖片顯示大小/佔寬比例</label>
+                        <select id="edit-block-image-size" class="w-full bg-slate-900 border border-slate-800 px-2 py-1 text-xs text-white sharp-edge">
+                            <option value="w-1/3">小 (佔寬 33%)</option>
+                            <option value="w-1/2">中 (佔寬 50%)</option>
+                            <option value="w-full">大 / 滿版 (佔寬 100%)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
+                <button onclick="saveBlock()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition">儲存並套用</button>
+                <button onclick="closeBlockEditor()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs sharp-edge hover:bg-slate-700 transition">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 5): 編輯日誌/外遊/探索/隨筆 ==================== -->
+    <div id="article-editor-modal" class="fixed inset-0 bg-slate-950/90 z-[2000] flex justify-center items-center p-4 hidden overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-800 max-w-3xl w-full shadow-2xl overflow-y-auto max-h-[92vh] flex flex-col sharp-edge">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950 flex-shrink-0">
+                <h3 id="article-editor-title" class="font-bold text-white text-xs uppercase tracking-widest">發佈深度探險</h3>
+                <button onclick="closeArticleEditor()" class="text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="saveArticle(event)" class="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                <input type="hidden" id="editor-article-id">
+                <input type="hidden" id="editor-article-type">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1 font-bold">文章/日記標題 <span class="text-red-500">*</span></label>
+                        <input type="text" id="art-title" required placeholder="如：大東山爛頭營石屋群" class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div id="art-category-field">
+                        <label class="block text-xs text-slate-400 mb-1 font-bold">專屬主要分類 <span class="text-red-500">*</span></label>
+                        <select id="art-category" class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge">
+                            <!-- JS 動態加載 -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 僅在非「探索」及「隨筆」下顯示 -->
+                <div id="art-meta-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1 font-bold">到訪/探險日期 (手動輸入，可模糊或留空) <span class="text-red-500">*</span></label>
+                        <input type="text" id="art-date" placeholder="例如：2026/10/01 或 2026年秋" class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge focus:outline-none">
+                    </div>
+                    <div id="art-distance-field">
+                        <label class="block text-xs text-slate-400 mb-1 font-bold">行程距離 (公里/km)</label>
+                        <input type="number" step="any" id="art-distance" placeholder="例如：7.5 (非必填)" class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1 font-bold">代表相片網址 (支援直接貼上 Imgur 網址)</label>
+                    <input type="url" id="art-image" placeholder="貼上 Imgur 或直接圖片網址" class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="border-t border-slate-850 pt-4">
+                    <label class="block text-xs text-slate-400 mb-1 font-bold">前言或主體介紹概述 <span class="text-red-500">*</span></label>
+                    <textarea id="art-content" required rows="4" placeholder="在此處寫下文章概述或日記起步前言..." class="w-full bg-slate-950 border border-slate-850 px-3 py-2 text-xs text-white sharp-edge focus:outline-none focus:border-emerald-500"></textarea>
+                </div>
+
+                <!-- 故事附屬段落 -->
+                <div class="border-t border-slate-850 pt-4 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-300"><i class="fa-solid fa-images text-emerald-500 mr-2"></i>日記附屬圖文故事鏈</span>
+                        
+                        <div class="flex items-center space-x-2">
+                            <button type="button" onclick="loadExploreStandardTemplate()" class="bg-slate-950 border border-slate-800 text-amber-500 hover:bg-slate-800 px-2.5 py-1 text-[10px] font-bold transition">導入專題完整歷史模組</button>
+                            <button type="button" onclick="addNewArticleSection()" class="bg-slate-950 border border-slate-800 text-emerald-400 hover:bg-slate-800 px-2.5 py-1 text-[10px] font-bold transition"><i class="fa-solid fa-plus mr-1"></i>追加圖文段落</button>
+                        </div>
+                    </div>
+                    <div id="art-sections-container" class="space-y-4">
+                        <!-- JS 動態追加區塊 -->
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-4 border-t border-slate-800">
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition shadow-lg shadow-emerald-950/50">發佈更新</button>
+                    <button type="button" onclick="closeArticleEditor()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-bold sharp-edge hover:bg-slate-700 transition">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 6): 深度紀實日記滿版閱讀頁面 ==================== -->
+    <div id="diary-reader-modal" class="fixed inset-0 bg-slate-950 z-[3000] overflow-y-auto hidden">
+        <div class="sticky top-0 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 h-16 flex items-center justify-between px-6 z-50 shadow-md">
+            <div class="flex items-center space-x-3">
+                <span id="reader-badge" class="bg-emerald-600 text-white text-[9px] font-black uppercase px-2.5 py-1 tracking-wider sharp-edge">探索</span>
+                <span class="text-xs text-slate-500 uppercase tracking-widest mono-font">EXHIBITION READER</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button id="reader-edit-btn" class="hidden text-slate-400 hover:text-white text-xs transition"><i class="fa-regular fa-edit mr-1"></i>編輯此篇</button>
+                <button onclick="closeDiaryReader()" class="bg-slate-850 hover:bg-slate-800 text-slate-100 px-4 py-1.5 text-xs font-bold border border-slate-800 transition sharp-edge"><i class="fa-solid fa-arrow-left mr-1.5"></i> 返回列表</button>
+            </div>
+        </div>
+
+        <article class="max-w-4xl mx-auto px-4 py-16 space-y-8">
+            <div class="text-center space-y-4 pb-8 border-b border-slate-900">
+                <h1 id="reader-title" class="text-3xl md:text-5xl font-black text-white tracking-wide leading-snug">景點名稱</h1>
+                <div id="reader-meta-bar" class="flex flex-wrap justify-center items-center gap-6 text-xs text-slate-500 mono-font">
+                    <span id="reader-date-container"><i class="fa-regular fa-calendar-days text-emerald-500 mr-1"></i> DATE: <span id="reader-date"></span></span>
+                    <span id="reader-distance-container"><i class="fa-solid fa-route text-emerald-500 mr-1"></i> DIS: <span id="reader-distance"></span> km</span>
+                </div>
+            </div>
+
+            <!-- 主相片 -->
+            <div class="w-full border border-slate-900 bg-slate-950">
+                <img id="reader-main-img" src="" alt="主照" class="w-full ratio-3-2 shadow-2xl sharp-edge">
+            </div>
+
+            <div id="reader-main-text" class="prose prose-invert prose-emerald max-w-none text-slate-300 text-base leading-relaxed whitespace-pre-wrap font-light font-sans">
+                <!-- 內文 -->
+            </div>
+
+            <div id="reader-sections" class="space-y-12 pt-8 border-t border-slate-900/60">
+                <!-- 追加的圖文故事線 -->
+            </div>
+        </article>
+    </div>
+
+    <!-- ==================== (MODAL 7): 全螢幕隨機播放幻燈片 ==================== -->
+    <div id="slideshow-modal" class="fixed inset-0 bg-slate-950/98 z-[3500] flex justify-center items-center p-4 hidden">
+        <div class="absolute top-6 right-6 flex items-center space-x-4 z-50">
+            <button onclick="toggleSlideshowFullscreen()" class="text-slate-400 hover:text-white text-xl transition"><i class="fa-solid fa-expand"></i></button>
+            <button onclick="stopSlideshow()" class="text-slate-400 hover:text-white text-3xl transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div id="slideshow-box" class="max-w-4xl w-full flex flex-col items-center space-y-4">
+            <div class="relative w-full aspect-[3/2] bg-black overflow-hidden flex items-center justify-center border border-slate-900 sharp-edge">
+                <img id="slideshow-img" src="" alt="幻燈片" class="max-h-full max-w-full object-contain transition-all duration-500 opacity-100 ratio-3-2 sharp-edge">
+                <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent p-6 text-center">
+                    <span id="slideshow-tag" class="text-[9px] bg-emerald-600 px-2 py-0.5 font-bold text-white sharp-edge">相簿放映</span>
+                    <h3 id="slideshow-title" class="text-base md:text-lg font-bold text-white mt-1">隨機幻燈片播放</h3>
+                </div>
+            </div>
+            <div class="flex items-center space-x-6 text-slate-400 bg-slate-900 px-6 py-2 border border-slate-800 sharp-edge">
+                <button onclick="prevSlideshow()" class="hover:text-emerald-400 text-lg transition"><i class="fa-solid fa-backward-step"></i></button>
+                <button id="slideshow-play-pause" onclick="toggleSlideshowPlay()" class="text-2xl text-emerald-500 hover:scale-110 transition"><i class="fa-solid fa-pause"></i></button>
+                <button onclick="nextSlideshow()" class="hover:text-emerald-400 text-lg transition"><i class="fa-solid fa-forward-step"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 8): 上傳照片 ==================== -->
+    <div id="gallery-upload-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-[2000] flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 max-w-sm w-full border border-slate-800 p-6 space-y-4 shadow-2xl sharp-edge">
+            <h3 class="font-bold text-white text-sm pb-2 border-b border-slate-800">新增照片至相冊</h3>
+            <form onsubmit="handleGalleryUpload(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">照片描述 / 標題 <span class="text-red-500">*</span></label>
+                    <input type="text" id="gal-title" required placeholder="如：大東山一隅" class="w-full bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white sharp-edge">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">相片分類 <span class="text-red-500">*</span></label>
+                    <select id="gal-category" required class="w-full bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white sharp-edge">
+                        <option value="遠足風光">遠足風光</option>
+                        <option value="廢墟細節">廢墟細節</option>
+                        <option value="標高柱">標高柱 (Kill Bill)</option>
+                        <option value="海外旅途">海外旅途</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">直接連結網址 (支援直接貼上 Imgur) <span class="text-red-500">*</span></label>
+                    <input type="url" id="gal-url" required placeholder="貼上照片直連或 Imgur 網址" class="w-full bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white sharp-edge">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                    <button type="submit" class="px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition">確認發佈</button>
+                    <button type="button" onclick="closeGalleryUploadModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs sharp-edge hover:bg-slate-700 transition">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 9): 相冊大圖放大 ==================== -->
+    <div id="photo-zoom-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[3000] flex justify-center items-center p-4 hidden">
+        <div class="relative max-w-4xl w-full flex flex-col items-center">
+            <button onclick="closePhotoZoomModal()" class="absolute -top-10 right-0 text-white text-3xl hover:text-emerald-400 transition"><i class="fa-solid fa-xmark"></i></button>
+            <img id="zoom-photo-img" src="" alt="放大" class="max-h-[80vh] ratio-3-2 border border-slate-900 shadow-2xl sharp-edge">
+            <div class="text-center mt-3">
+                <h4 id="zoom-photo-title" class="text-white text-sm font-bold tracking-wide">照片主題</h4>
+                <p id="zoom-photo-category" class="text-xs text-slate-500 mt-0.5">分類</p>
+                <button id="zoom-photo-del-btn" class="admin-only hidden mt-3 px-3 py-1 bg-red-950 border border-red-700 text-red-400 text-[10px] rounded hover:bg-red-900 transition sharp-edge"><i class="fa-regular fa-trash-can mr-1"></i>刪除此照片</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 10): 橫幅看板編輯 ==================== -->
+    <div id="hero-settings-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[2000] flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 max-w-md w-full p-6 space-y-4 shadow-2xl sharp-edge">
+            <h3 class="font-bold text-white text-sm pb-2 border-b border-slate-800">編輯首頁橫幅看板</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">主標題</label>
+                    <input type="text" id="hero-title-input" class="w-full bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white sharp-edge">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">副標題</label>
+                    <textarea id="hero-subtitle-input" rows="3" class="w-full bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white sharp-edge"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">背景圖片網址</label>
+                    <input type="url" id="hero-image-input" class="w-full bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white sharp-edge">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button onclick="saveHeroSettings()" class="px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition">儲存</button>
+                <button onclick="closeHeroSettings()" class="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs sharp-edge hover:bg-slate-700 transition">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== (MODAL 11): 標高柱 (Kill Bill) 新增/編輯器 ==================== -->
+    <div id="killbill-editor-modal" class="fixed inset-0 bg-slate-950/80 z-[2000] flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 max-w-md w-full border border-slate-800 shadow-2xl p-6 space-y-4 sharp-edge">
+            <h3 id="kb-editor-title" class="font-bold text-white text-sm pb-2 border-b border-slate-800">登錄 Kill Bill 標高柱資訊</h3>
+            <form id="kb-form" onsubmit="saveKillBill(event)" class="space-y-3">
+                <input type="hidden" id="kb-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">地方名字 / 峰頂 <span class="text-red-500">*</span></label>
+                        <input type="text" id="kb-name" required placeholder="如：大金鐘" class="w-full bg-slate-950 border border-slate-800 px-2.5 py-1.5 text-xs text-white sharp-edge">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">標高柱編號 (No.)</label>
+                        <input type="text" id="kb-code" placeholder="如：4004.18" class="w-full bg-slate-950 border border-slate-800 px-2.5 py-1.5 text-xs text-white sharp-edge">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">種類屬性 <span class="text-red-500">*</span></label>
+                        <select id="kb-type" required class="w-full bg-slate-950 border border-slate-800 px-2.5 py-1.5 text-xs text-white sharp-edge">
+                            <option value="Type A">Type A 標高柱</option>
+                            <option value="Type B">Type B 標高柱</option>
+                            <option value="導線站">導線站</option>
+                            <option value="舊款">舊款石碑/測點</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">到訪日期 (手動輸入) <span class="text-red-500">*</span></label>
+                        <input type="text" id="kb-date" required placeholder="例如：2026/03/22" class="w-full bg-slate-950 border border-slate-800 px-2.5 py-1.5 text-xs text-white sharp-edge">
+                    </div>
+                </div>
+                <input type="hidden" id="kb-lat">
+                <input type="hidden" id="kb-lng">
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">實拍照網址 (支援 Imgur)</label>
+                    <input type="url" id="kb-image" placeholder="貼上照片或 Imgur 網址" class="w-full bg-slate-950 border border-slate-800 px-2.5 py-1.5 text-xs text-white sharp-edge">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1">短評或交通說明</label>
+                    <textarea id="kb-notes" rows="3" placeholder="簡述如何前往..." class="w-full bg-slate-950 border border-slate-800 px-2.5 py-1.5 text-xs text-white sharp-edge"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                    <button type="submit" class="px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold sharp-edge hover:bg-emerald-500 transition">確認存檔</button>
+                    <button type="button" onclick="closeKillBillEditor()" class="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs sharp-edge hover:bg-slate-700 transition">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 成功通知 Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-950 text-white px-5 py-3 rounded-none shadow-2xl border border-emerald-500/20 flex items-center space-x-3 transform translate-y-20 opacity-0 transition duration-300 z-[9999]">
+        <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
+        <span id="toast-msg" class="text-xs font-semibold">成功更動！</span>
+    </div>
+
+    <!-- ==================== JavaScript 核心邏輯 ==================== -->
+    <script>
+        // Imgur 解析引擎：全面強化 Imgur 連結解析
+        function resolveImgurUrl(url) {
+            if (!url) return '';
+            url = url.trim();
+            
+            // 處理已經是直連網址的情況
+            if (url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) {
+                return url;
+            }
+
+            // 處理相簿 L0DCt9N / a / gallery 等情況
+            const albumMatch = url.match(/imgur\.com\/a\/([a-zA-Z0-9]+)/);
+            if (albumMatch) {
+                return `https://i.imgur.com/${albumMatch[1]}.jpg`;
+            }
+            const galleryMatch = url.match(/imgur\.com\/gallery\/([a-zA-Z0-9]+)/);
+            if (galleryMatch) {
+                return `https://i.imgur.com/${galleryMatch[1]}.jpg`;
+            }
+            const singleMatch = url.match(/imgur\.com\/([a-zA-Z0-9]+)/);
+            if (singleMatch && !url.includes('i.imgur.com')) {
+                return `https://i.imgur.com/${singleMatch[1]}.jpg`;
+            }
+            return url;
+        }
+
+        // ------------------ 預設探險資料庫 ------------------
+        const initialTabs = [
+            { id: "home-tab", name: "首頁" },
+            { id: "diary-tab", name: "日誌" }, // 已更名
+            { id: "explore-tab", name: "探索" }, 
+            { id: "gallery-tab", name: "照片集" },
+            { id: "map-tab", name: "Kill Bill地圖" }, // 已更名
+            { id: "travel-tab", name: "外遊篇" },
+            { id: "other-tab", name: "隨筆" } // 外遊篇右側 (最右)
+        ];
+
+        const initialTheme = {
+            brandName: "港跡．SKYWALKER",
+            brandSubtitle: "十年千回．香港及外遊野外秘密探險誌",
+            primaryColor: "#10b981",
+            subDiary: "十年千回探索，按到訪日期、距離及各路線標籤（山線、水線、海岸等）進行精確篩選。",
+            subExplore: "針對各大主題（廢墟、石澗等）建立的獨立紀實篇章，探索未知角落。",
+            subGallery: "不修剪圓角，還原最真實的紀實相片。提供全螢幕幻燈片播放。",
+            subMap: "互動標記到訪過的測量點與標高柱。地圖點擊即可精確登錄位置。",
+            subTravel: "海外異國旅居、秘境探索與廢墟歷史紀實。",
+            footerBio: "本站為非商業性質探險風情與歷史文檔彙整，旨在啟發及教育下一代珍惜香港及世界自然與歷史文化遺蹟。",
+            footerCopy: "© 2026 港跡 Skywalker. 致敬「天行足跡」精神理念。"
+        };
+
+        const initialHero = {
+            title: "尋回地圖上被遺忘的角落",
+            subtitle: "十年千回，深入那些被大自然重新擁抱的歷史遺跡、高聳入雲的標高柱，和從未於網絡公開的極秘祕境。",
+            bgImage: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80"
+        };
+
+        const initialHomeBlocks = [
+            {
+                id: "blk-1",
+                tabId: "home-tab",
+                type: "image-text",
+                title: "十年千回，寫給下一代人的香港與世界備忘錄",
+                titleSize: "text-xl",
+                titleBold: true,
+                content: "在過去的十年間，我隻身走進了新界的崇山峻嶺、荒涼小島、以及那些早已淹沒在荒煙蔓草之中的舊村落與軍事廢墟；並逐步踏足海外秘境。這裡記錄的地點，許多都需要極高的體能、攀爬技巧和豐富的求生知識；有些遺產甚至正隨著大自然的侵蝕而漸漸瓦解。我希望將這些真實面貌整理成誌，為未來留下歷史的側影，同時啟迪後代熱愛並保護這座獨域與世界自然遺構。",
+                contentSize: "text-sm",
+                contentBold: false,
+                image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80",
+                imageSize: "w-1/2"
+            }
+        ];
+
+        const exploreThemes = ["香港遠足", "香港石澗", "香港海岸", "香港廢墟", "洞穴探索", "城市探索"];
+
+        const initialDiaries = [
+            {
+                id: "1",
+                type: "探索日誌",
+                title: "大東山爛頭營：秋芒深處的二十二座傳教士石屋",
+                category: "香港遠足",
+                date: "2026/04/18",
+                distance: 7.5,
+                image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80",
+                content: "大東山（海拔 869 米）為全港第三高峰。屹立於山脊上的「爛頭營」石屋群由外籍傳教士於上世紀興建。當深秋芒草金黃，這些古樸石室在白霧環繞中宛如仙境，這是一場歷史與大自然造化的視覺奇遇。",
+                sections: [
+                    {
+                        title: "歷史背景與建造起源",
+                        text: "石屋群大約於 1920 至 1930 年代興建。當時英美傳教士為了躲避香港市區悶熱的夏季，集資在海風吹拂的大東山鞍部興建了這一批避暑營舍，水源由附近山澗引接。",
+                        image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80"
+                    }
+                ]
+            }
+        ];
+
+        const initialTravels = [
+            {
+                id: "tr-1",
+                type: "外遊篇",
+                title: "切爾諾貝爾隔離區：沉睡中的普里皮亞季廢墟",
+                category: "海外旅居",
+                date: "2025/09/12",
+                distance: 15.2,
+                image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80",
+                content: "親身進入世界上最著名的核輻射廢棄城市。在荒廢的遊樂場、學校和醫院中，時間彷彿在 1986 年徹底定格，四周只有大自然收復鋼筋混凝土的荒涼聲響。",
+                sections: [
+                    {
+                        title: "生命與時間的死鎖",
+                        text: "這座城市曾經居住了近五萬名核電廠工人及其家屬。災難發生後，所有玩具、書本都保留在原位，成為一場震撼心靈的歷史紀實錄。",
+                        image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
+                    }
+                ]
+            }
+        ];
+
+        const initialExplores = [
+            {
+                id: "exp-1",
+                type: "探索",
+                title: "西貢最偏遠：黃竹角咀紅褶岩與「鬼手」",
+                category: "香港海岸",
+                date: "2026/01/20",
+                distance: null,
+                image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+                content: "黃竹角咀擁有香港最古老的沉積岩，距今已逾四億年。著名的地質奇觀「鬼手岩」默默在海岸邊經受著潮汐海浪的海蝕風化。這段行程極其考究體能，來回徒步近 20 公里，是香港野外探索者的一大終極洗禮。",
+                sections: [
+                    {
+                        title: "【背景介紹：四億年的古老褶皺】",
+                        text: "這裡出露的「黃竹角咀組」地層，是由紅色的砂岩、粉砂岩組成，岩石因受到強烈的地質構造擠壓，呈現出令人驚嘆的垂直褶皺。",
+                        image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80"
+                    }
+                ]
+            }
+        ];
+
+        // 預設「隨筆」資料
+        const initialOthers = [
+            {
+                id: "oth-1",
+                type: "隨筆",
+                title: "隨筆：野外安全裝備與心態調適",
+                category: "隨筆",
+                date: "2026/05/10",
+                distance: null,
+                image: "https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&w=800&q=80",
+                content: "無論是深入大東山的歷史石屋，還是攀越黃竹角咀的漫長海岸線，野外探險的底線永遠是安全。這裡記錄一些自己十年間的裝備清單備忘與安全心態...",
+                sections: [
+                    {
+                        title: "1. 必備基礎裝備",
+                        text: "離線地圖、充足水源（至少 2L）、頭燈（預防摸黑入夜）以及輕便雨衣。這是最基本的安全防線。",
+                        image: ""
+                    }
+                ]
+            }
+        ];
+
+        const initialGallery = [
+            { id: "g-1", title: "大東山芒草夕陽", category: "遠足風光", url: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=600&q=80" },
+            { id: "g-2", title: "黃竹角咀驚濤駭浪", category: "遠足風光", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80" }
+        ];
+
+        const initialKillBills = [
+            {
+                id: "kb-1",
+                name: "昂平大金鐘山頂測量柱",
+                code: "4004.18",
+                type: "Type A",
+                date: "2026/03/22",
+                lat: 22.4080,
+                lng: 114.2435,
+                image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+                notes: "山頂標高柱基座非常穩固，山路傾斜難行，山頂可俯瞰整個西貢與昂平大草原。"
+            }
+        ];
+
+        // ------------------ 狀態控制變量 ------------------
+        let appTabs = [];
+        let themeData = {};
+        let heroData = {};
+        let homeBlocks = [];
+        let diaries = [];
+        let travels = [];
+        let explores = [];
+        let others = []; // 隨筆分頁資料
+        let gallery = [];
+        let killbills = [];
+
+        let currentTab = "home-tab";
+        let isEditing = false;
+        let mapObj = null;
+        let mapMarkers = [];
+
+        let diaryPageSize = 10;
+        let diaryCurrentPage = 1;
+        let diarySortRule = "date-desc";
+        let diaryCatFilterRule = "All";
+
+        let travelSortRule = "date-desc";
+        let activeExploreTheme = "香港遠足";
+
+        let slideshowIndex = 0;
+        let slideshowInterval = null;
+        let slideshowIsPlaying = false;
+
+        // ------------------ 初始化 ------------------
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            applyThemeStyles();
+            renderAllNavMenus();
+            initHeroUI();
+            renderHomeBlocks();
+            renderDiaries();
+            renderTravels();
+            renderOthers(); // 渲染隨筆分頁
+            renderExploreThemeSelector();
+            renderExploreTab();
+            renderGallery();
+            initMapSystem();
+            renderMapAndLists();
+        });
+
+        function loadFromStorage() {
+            appTabs = JSON.parse(localStorage.getItem('sky_tabs_v3')) || initialTabs;
+            themeData = JSON.parse(localStorage.getItem('sky_theme_v3')) || initialTheme;
+            heroData = JSON.parse(localStorage.getItem('sky_hero_v3')) || initialHero;
+            homeBlocks = JSON.parse(localStorage.getItem('sky_home_blocks_v3')) || initialHomeBlocks;
+            diaries = JSON.parse(localStorage.getItem('sky_diaries_v3')) || initialDiaries;
+            travels = JSON.parse(localStorage.getItem('sky_travels_v3')) || initialTravels;
+            explores = JSON.parse(localStorage.getItem('sky_explores_v3')) || initialExplores;
+            others = JSON.parse(localStorage.getItem('sky_others_v3')) || initialOthers;
+            gallery = JSON.parse(localStorage.getItem('sky_gallery_v3')) || initialGallery;
+            killbills = JSON.parse(localStorage.getItem('sky_killbills_v3')) || initialKillBills;
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('sky_tabs_v3', JSON.stringify(appTabs));
+            localStorage.setItem('sky_theme_v3', JSON.stringify(themeData));
+            localStorage.setItem('sky_hero_v3', JSON.stringify(heroData));
+            localStorage.setItem('sky_home_blocks_v3', JSON.stringify(homeBlocks));
+            localStorage.setItem('sky_diaries_v3', JSON.stringify(diaries));
+            localStorage.setItem('sky_travels_v3', JSON.stringify(travels));
+            localStorage.setItem('sky_explores_v3', JSON.stringify(explores));
+            localStorage.setItem('sky_others_v3', JSON.stringify(others));
+            localStorage.setItem('sky_gallery_v3', JSON.stringify(gallery));
+            localStorage.setItem('sky_killbills_v3', JSON.stringify(killbills));
+        }
+
+        function applyThemeStyles() {
+            document.documentElement.style.setProperty('--theme-color', themeData.primaryColor);
+            document.getElementById('brand-name').textContent = themeData.brandName;
+            document.getElementById('brand-subtitle').textContent = themeData.brandSubtitle;
+
+            // 應用自訂副標題
+            document.getElementById('sub-diary-tab').textContent = themeData.subDiary || initialTheme.subDiary;
+            document.getElementById('sub-explore-tab').textContent = themeData.subExplore || initialTheme.subExplore;
+            document.getElementById('sub-gallery-tab').textContent = themeData.subGallery || initialTheme.subGallery;
+            document.getElementById('sub-map-tab').textContent = themeData.subMap || initialTheme.subMap;
+            document.getElementById('sub-travel-tab').textContent = themeData.subTravel || initialTheme.subTravel;
+
+            // 應用自訂頁尾
+            document.getElementById('footer-bio-text').textContent = themeData.footerBio || initialTheme.footerBio;
+            document.getElementById('footer-copy-text').textContent = themeData.footerCopy || initialTheme.footerCopy;
+        }
+
+        // ------------------ 選單控制系統 (美化橫向選單列) ------------------
+        function toggleNavDrawer() {
+            const drawer = document.getElementById('nav-drawer');
+            const overlay = document.getElementById('nav-drawer-overlay');
+            drawer.classList.toggle('translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        function renderAllNavMenus() {
+            // 1. 橫向分頁選單
+            const hContainer = document.getElementById('horizontal-nav-links');
+            hContainer.innerHTML = '';
+
+            appTabs.forEach(tab => {
+                const btn = document.createElement('button');
+                btn.className = `px-5 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all duration-300 border-b-[2px] ${
+                    currentTab === tab.id 
+                    ? 'text-white border-emerald-500 font-bold' 
+                    : 'text-slate-500 border-transparent hover:text-slate-300 hover:border-slate-800'
+                }`;
+                if (currentTab === tab.id) {
+                    btn.style.borderBottomColor = themeData.primaryColor;
+                    btn.style.textShadow = `0 0 10px ${themeData.primaryColor}50`;
+                }
+                btn.textContent = tab.name;
+                btn.onclick = () => switchTab(tab.id);
+                hContainer.appendChild(btn);
+            });
+
+            // 2. 側邊欄抽屜選單 (隨筆與外遊篇將排至最底)
+            const dContainer = document.getElementById('drawer-menu-links');
+            dContainer.innerHTML = '';
+
+            appTabs.forEach(tab => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left py-3.5 px-4 font-black text-xs tracking-[0.25em] border-b border-slate-900/50 transition-all duration-300 uppercase flex justify-between items-center ${
+                    currentTab === tab.id ? 'bg-slate-900/50 text-white' : 'text-slate-400 hover:text-white'
+                }`;
+                
+                let icon = '<i class="fa-solid fa-chevron-right text-[10px] text-slate-700"></i>';
+                if (currentTab === tab.id) {
+                    btn.style.borderLeft = `3px solid ${themeData.primaryColor}`;
+                    icon = `<i class="fa-solid fa-circle-check text-xs" style="color: ${themeData.primaryColor};"></i>`;
+                }
+
+                btn.innerHTML = `<span>${tab.name}</span> ${icon}`;
+                btn.onclick = () => {
+                    switchTab(tab.id);
+                    toggleNavDrawer();
+                };
+                dContainer.appendChild(btn);
+            });
+        }
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+
+            // 隱藏全部
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.custom-tab-section').forEach(el => el.classList.add('hidden'));
+
+            const target = document.getElementById(tabId);
+            if (target) {
+                target.classList.remove('hidden');
+            } else {
+                const custTab = document.getElementById(`custom-sec-${tabId}`);
+                if (custTab) custTab.classList.remove('hidden');
+            }
+
+            renderAllNavMenus();
+
+            if (tabId === 'map-tab' && mapObj) {
+                setTimeout(() => {
+                    mapObj.invalidateSize();
+                }, 200);
+            }
+        }
+
+        // ------------------ 密碼安全認證 (Alan1234) ------------------
+        function handleAdminLinkClick() {
+            toggleNavDrawer();
+            if (isEditing) {
+                exitAdminMode();
+            } else {
+                document.getElementById('login-modal').classList.remove('hidden');
+                document.getElementById('admin-password-input').focus();
+            }
+        }
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+            document.getElementById('admin-password-input').value = '';
+        }
+
+        function handleLoginVerify(e) {
+            e.preventDefault();
+            const pwd = document.getElementById('admin-password-input').value;
+            if (pwd === 'Alan1234') {
+                isEditing = true;
+                enterAdminMode();
+                closeLoginModal();
+                showToast("🔓 密碼正確，已進入編輯模式。");
+            } else {
+                alert("密碼錯誤！請重新輸入。");
+            }
+        }
+
+        function enterAdminMode() {
+            document.getElementById('admin-banner').classList.remove('hidden');
+            const editBtn = document.getElementById('admin-trigger-link');
+            editBtn.textContent = "退出編輯模式";
+            editBtn.classList.add('text-red-400');
+
+            document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+
+            renderHomeBlocks();
+            renderDiaries();
+            renderTravels();
+            renderOthers();
+            renderExploreThemeSelector();
+            renderExploreTab();
+            renderGallery();
+            renderMapAndLists();
+            renderCustomTabsAndBlocks();
+        }
+
+        function exitAdminMode() {
+            isEditing = false;
+            document.getElementById('admin-banner').classList.add('hidden');
+            const editBtn = document.getElementById('admin-trigger-link');
+            editBtn.textContent = "編輯模式";
+            editBtn.classList.remove('text-red-400');
+
+            document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
+
+            renderHomeBlocks();
+            renderDiaries();
+            renderTravels();
+            renderOthers();
+            renderExploreThemeSelector();
+            renderExploreTab();
+            renderGallery();
+            renderMapAndLists();
+            renderCustomTabsAndBlocks();
+            showToast("🔒 已恢復大眾唯讀瀏覽模式。");
+        }
+
+        // ------------------ 網站自設定編輯 ------------------
+        function openThemeSettingsModal() {
+            if (!isEditing) return;
+            document.getElementById('theme-brand-name').value = themeData.brandName || '';
+            document.getElementById('theme-brand-subtitle').value = themeData.brandSubtitle || '';
+            document.getElementById('theme-custom-picker').value = themeData.primaryColor || '#10b981';
+
+            document.getElementById('edit-sub-diary').value = themeData.subDiary || '';
+            document.getElementById('edit-sub-explore').value = themeData.subExplore || '';
+            document.getElementById('edit-sub-gallery').value = themeData.subGallery || '';
+            document.getElementById('edit-sub-map').value = themeData.subMap || '';
+            document.getElementById('edit-sub-travel').value = themeData.subTravel || '';
+            document.getElementById('edit-footer-bio').value = themeData.footerBio || '';
+            document.getElementById('edit-footer-copy').value = themeData.footerCopy || '';
+
+            document.getElementById('theme-settings-modal').classList.remove('hidden');
+        }
+
+        function closeThemeSettingsModal() {
+            document.getElementById('theme-settings-modal').classList.add('hidden');
+        }
+
+        function saveThemeSettings() {
+            themeData.brandName = document.getElementById('theme-brand-name').value.trim();
+            themeData.brandSubtitle = document.getElementById('theme-brand-subtitle').value.trim();
+            themeData.primaryColor = document.getElementById('theme-custom-picker').value;
+
+            themeData.subDiary = document.getElementById('edit-sub-diary').value.trim();
+            themeData.subExplore = document.getElementById('edit-sub-explore').value.trim();
+            themeData.subGallery = document.getElementById('edit-sub-gallery').value.trim();
+            themeData.subMap = document.getElementById('edit-sub-map').value.trim();
+            themeData.subTravel = document.getElementById('edit-sub-travel').value.trim();
+            themeData.footerBio = document.getElementById('edit-footer-bio').value.trim();
+            themeData.footerCopy = document.getElementById('edit-footer-copy').value.trim();
+
+            saveToStorage();
+            applyThemeStyles();
+            renderAllNavMenus();
+            closeThemeSettingsModal();
+            showToast("🎨 視覺大標題及各分頁副標題設定已成功儲存！");
+        }
+
+        // ------------------ 自訂分頁配置 ------------------
+        function openTabManagerModal() {
+            if (!isEditing) return;
+            const list = document.getElementById('tab-manage-list');
+            list.innerHTML = '';
+
+            appTabs.forEach((tab, index) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between bg-slate-950 p-2 border border-slate-800 text-xs sharp-edge";
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="text-slate-500 font-bold">#${index+1}</span>
+                        <input type="text" value="${tab.name}" onchange="renameTab('${tab.id}', this.value)" class="bg-transparent border-b border-transparent focus:border-emerald-500 text-slate-200 outline-none w-32 font-bold">
+                    </div>
+                    ${['home-tab', 'diary-tab', 'explore-tab', 'gallery-tab', 'map-tab', 'other-tab', 'travel-tab'].includes(tab.id) 
+                      ? `<span class="text-[9px] text-slate-600 font-semibold px-2">主系統分頁</span>`
+                      : `<button onclick="deleteCustomTab('${tab.id}')" class="text-red-500 hover:text-red-400 text-xs"><i class="fa-regular fa-trash-can"></i></button>`
+                    }
+                `;
+                list.appendChild(item);
+            });
+
+            document.getElementById('tab-manager-modal').classList.remove('hidden');
+        }
+
+        function closeTabManagerModal() {
+            document.getElementById('tab-manager-modal').classList.add('hidden');
+        }
+
+        function createNewTab() {
+            const nameInput = document.getElementById('new-tab-name-input');
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            const newId = "custom-" + Date.now();
+            appTabs.push({ id: newId, name: name });
+            saveToStorage();
+            
+            nameInput.value = '';
+            renderAllNavMenus();
+            renderCustomTabsAndBlocks();
+            openTabManagerModal();
+            showToast(`📂 新自訂分頁「${name}」已順利新增！`);
+        }
+
+        function renameTab(id, newName) {
+            const tab = appTabs.find(t => t.id === id);
+            if (tab && newName.trim()) {
+                tab.name = newName.trim();
+                saveToStorage();
+                renderAllNavMenus();
+                renderCustomTabsAndBlocks();
+                showToast("✏️ 分頁名稱已更新");
+            }
+        }
+
+        function deleteCustomTab(id) {
+            if (confirm("您確定要刪除此自定義分頁嗎？內部的圖文排版將一併永久移除。")) {
+                appTabs = appTabs.filter(t => t.id !== id);
+                homeBlocks = homeBlocks.filter(b => b.tabId !== id);
+                saveToStorage();
+
+                renderAllNavMenus();
+                renderCustomTabsAndBlocks();
+                
+                if (currentTab === id) switchTab('home-tab');
+
+                openTabManagerModal();
+                showToast("🗑️ 分頁已清除");
+            }
+        }
+
+        // ------------------ 萬能排版區塊 ------------------
+        function renderHomeBlocks() {
+            renderBlocksForTab('home-tab', 'home-blocks');
+        }
+
+        function renderBlocksForTab(tabId, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            const blocks = homeBlocks.filter(b => b.tabId === tabId);
+
+            if (blocks.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-600 text-xs tracking-wider">
+                        <i class="fa-solid fa-layer-group text-3xl mb-3 block opacity-40"></i>
+                        目前該分頁下尚未有任何圖文排版區塊。點選下方追加按鈕即可建立。
+                    </div>
+                `;
+                return;
+            }
+
+            blocks.forEach(block => {
+                const el = document.createElement('div');
+                el.className = "bg-slate-950/60 border border-slate-900 p-6 md:p-8 relative overflow-hidden group sharp-edge shadow-lg";
+                
+                const editLayer = `
+                    <div class="admin-only ${isEditing ? '' : 'hidden'} absolute top-4 right-4 flex space-x-1 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button onclick="editBlock('${block.tabId}', '${block.id}')" class="bg-slate-900 border border-slate-800 text-emerald-400 p-1.5 text-xs hover:bg-slate-850"><i class="fa-regular fa-edit"></i></button>
+                        <button onclick="deleteBlock('${block.id}')" class="bg-slate-900 border border-slate-850 text-red-500 p-1.5 text-xs hover:bg-slate-850"><i class="fa-regular fa-trash-can"></i></button>
+                    </div>
+                `;
+
+                const titleClass = `${block.titleSize || 'text-base'} ${block.titleBold ? 'font-black text-white' : 'font-normal text-slate-200'} tracking-wide`;
+                const contentClass = `${block.contentSize || 'text-sm'} ${block.contentBold ? 'font-bold' : 'font-light'} text-slate-400 leading-relaxed whitespace-pre-wrap`;
+                const imageSizeClass = block.imageSize || 'w-1/2';
+
+                const resolvedImg = resolveImgUrlHTML(block.image);
+
+                if (block.type === 'text') {
+                    el.innerHTML = `
+                        ${editLayer}
+                        <div class="space-y-4">
+                            <h3 class="${titleClass} border-l-2 pl-3" style="border-left-color: var(--theme-color);">${block.title}</h3>
+                            <p class="${contentClass}">${block.content}</p>
+                        </div>
+                    `;
+                } else if (block.type === 'image-text') {
+                    el.innerHTML = `
+                        ${editLayer}
+                        <div class="flex flex-col lg:flex-row gap-8 items-center justify-between">
+                            <div class="flex-1 space-y-4">
+                                <h3 class="${titleClass} border-l-2 pl-3" style="border-left-color: var(--theme-color);">${block.title}</h3>
+                                <p class="${contentClass}">${block.content}</p>
+                            </div>
+                            <div class="${imageSizeClass} border border-slate-900 flex-shrink-0 bg-slate-950">
+                                <img src="${resolvedImg}" alt="${block.title}" class="w-full h-auto ratio-3-2 sharp-edge shadow-2xl" onerror="this.src='https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=400&q=80'">
+                            </div>
+                        </div>
+                    `;
+                }
+
+                container.appendChild(el);
+            });
+        }
+
+        function renderCustomTabsAndBlocks() {
+            const parent = document.getElementById('custom-tabs-container');
+            parent.innerHTML = '';
+
+            const customTabs = appTabs.filter(t => !['home-tab', 'diary-tab', 'explore-tab', 'gallery-tab', 'map-tab', 'other-tab', 'travel-tab'].includes(t.id));
+
+            customTabs.forEach(tab => {
+                const section = document.createElement('section');
+                section.id = `custom-sec-${tab.id}`;
+                section.className = "custom-tab-section tab-content hidden space-y-8";
+
+                section.innerHTML = `
+                    <div class="flex justify-between items-end pb-5 border-b border-slate-900">
+                        <div class="space-y-1.5">
+                            <h2 class="text-2xl font-black text-white tracking-wide">${tab.name}</h2>
+                        </div>
+                        <span class="text-xs text-slate-500 uppercase tracking-widest mono-font">CUSTOM TAB</span>
+                    </div>
+
+                    <div id="blocks-container-${tab.id}" class="space-y-8"></div>
+
+                    <div class="admin-only ${isEditing ? '' : 'hidden'} border border-dashed border-slate-800 p-6 text-center bg-slate-950/20 sharp-edge">
+                        <p class="text-xs text-slate-500 mb-3">🛠️ 站長工具：在此分頁自訂追加圖文排版</p>
+                        <div class="flex justify-center space-x-3">
+                            <button onclick="addBlock('${tab.id}', 'text')" class="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs font-bold border border-slate-800 transition-colors sharp-edge"><i class="fa-solid fa-font mr-1.5 text-emerald-500"></i>追加純文字段落</button>
+                            <button onclick="addBlock('${tab.id}', 'image-text')" class="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs font-bold border border-slate-800 transition-colors sharp-edge"><i class="fa-solid fa-image mr-1.5 text-emerald-500"></i>追加圖文混合區塊</button>
+                        </div>
+                    </div>
+                `;
+
+                parent.appendChild(section);
+                renderBlocksForTab(tab.id, `blocks-container-${tab.id}`);
+            });
+        }
+
+        function resolveImgUrlHTML(url) {
+            return resolveImgurUrl(url) || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=400&q=80';
+        }
+
+        function addBlock(tabId, type) {
+            const newBlock = {
+                id: "blk-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+                tabId,
+                type,
+                title: "全新自訂區塊標題",
+                titleSize: "text-lg",
+                titleBold: true,
+                content: "在此處編寫詳細文案內容...",
+                contentSize: "text-sm",
+                contentBold: false,
+                image: type === 'image-text' ? "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80" : "",
+                imageSize: "w-1/2"
+            };
+
+            homeBlocks.push(newBlock);
+            saveToStorage();
+            
+            if (tabId === 'home-tab') {
+                renderHomeBlocks();
+            } else {
+                renderBlocksForTab(tabId, `blocks-container-${tabId}`);
+            }
+
+            editBlock(tabId, newBlock.id);
+        }
+
+        function editBlock(tabId, id) {
+            const block = homeBlocks.find(b => b.id === id);
+            if (!block) return;
+
+            document.getElementById('edit-block-tab-id').value = tabId;
+            document.getElementById('edit-block-id').value = id;
+            document.getElementById('edit-block-type').value = block.type;
+
+            document.getElementById('edit-block-title').value = block.title;
+            document.getElementById('edit-block-title-size').value = block.titleSize || 'text-lg';
+            document.getElementById('edit-block-title-bold').checked = block.titleBold !== false;
+
+            document.getElementById('edit-block-content').value = block.content;
+            document.getElementById('edit-block-content-size').value = block.contentSize || 'text-sm';
+            document.getElementById('edit-block-content-bold').checked = block.contentBold === true;
+
+            const imgSettings = document.getElementById('block-img-settings-field');
+            if (block.type === 'image-text') {
+                imgSettings.classList.remove('hidden');
+                document.getElementById('edit-block-image').value = block.image || '';
+                document.getElementById('edit-block-image-size').value = block.imageSize || 'w-1/2';
+            } else {
+                imgSettings.classList.add('hidden');
+            }
+
+            document.getElementById('block-editor-modal').classList.remove('hidden');
+        }
+
+        function closeBlockEditor() {
+            document.getElementById('block-editor-modal').classList.add('hidden');
+        }
+
+        function saveBlock() {
+            const tabId = document.getElementById('edit-block-tab-id').value;
+            const id = document.getElementById('edit-block-id').value;
+            const type = document.getElementById('edit-block-type').value;
+
+            const block = homeBlocks.find(b => b.id === id);
+            if (block) {
+                block.title = document.getElementById('edit-block-title').value.trim();
+                block.titleSize = document.getElementById('edit-block-title-size').value;
+                block.titleBold = document.getElementById('edit-block-title-bold').checked;
+
+                block.content = document.getElementById('edit-block-content').value.trim();
+                block.contentSize = document.getElementById('edit-block-content-size').value;
+                block.contentBold = document.getElementById('edit-block-content-bold').checked;
+
+                if (type === 'image-text') {
+                    block.image = resolveImgurUrl(document.getElementById('edit-block-image').value.trim());
+                    block.imageSize = document.getElementById('edit-block-image-size').value;
+                }
+
+                saveToStorage();
+                
+                if (tabId === 'home-tab') {
+                    renderHomeBlocks();
+                } else {
+                    renderBlocksForTab(tabId, `blocks-container-${tabId}`);
+                }
+
+                closeBlockEditor();
+                showToast("✨ 排版區塊更動套用成功！");
+            }
+        }
+
+        function deleteBlock(id) {
+            if (confirm("確定要移除此圖文排版區塊嗎？")) {
+                const block = homeBlocks.find(b => b.id === id);
+                const tabId = block ? block.tabId : null;
+
+                homeBlocks = homeBlocks.filter(b => b.id !== id);
+                saveToStorage();
+
+                if (tabId === 'home-tab') {
+                    renderHomeBlocks();
+                } else if (tabId) {
+                    renderBlocksForTab(tabId, `blocks-container-${tabId}`);
+                }
+
+                showToast("🗑️ 區塊已刪除");
+            }
+        }
+
+        function editHeroSettings() {
+            document.getElementById('hero-title-input').value = heroData.title;
+            document.getElementById('hero-subtitle-input').value = heroData.subtitle;
+            document.getElementById('hero-image-input').value = heroData.bgImage;
+            document.getElementById('hero-settings-modal').classList.remove('hidden');
+        }
+
+        function closeHeroSettings() {
+            document.getElementById('hero-settings-modal').classList.add('hidden');
+        }
+
+        function saveHeroSettings() {
+            heroData.title = document.getElementById('hero-title-input').value.trim();
+            heroData.subtitle = document.getElementById('hero-subtitle-input').value.trim();
+            heroData.bgImage = resolveImgurUrl(document.getElementById('hero-image-input').value.trim());
+            saveToStorage();
+            initHeroUI();
+            closeHeroSettings();
+            showToast("🏠 橫幅看板更新成功！");
+        }
+
+        function initHeroUI() {
+            document.getElementById('home-hero-title').textContent = heroData.title;
+            document.getElementById('home-hero-subtitle').textContent = heroData.subtitle;
+            const heroUrl = resolveImgurUrl(heroData.bgImage);
+            document.getElementById('hero-image-underlay').style.backgroundImage = `url('${heroUrl}')`;
+        }
+
+        // ------------------ 日誌篩選 ------------------
+        function changeDiaryFilter() {
+            diaryPageSize = parseInt(document.getElementById('diary-page-size').value);
+            diarySortRule = document.getElementById('diary-sort').value;
+            diaryCatFilterRule = document.getElementById('diary-cat-filter').value;
+            diaryCurrentPage = 1;
+            renderDiaries();
+        }
+
+        function renderDiaries() {
+            const grid = document.getElementById('diary-grid');
+            grid.innerHTML = '';
+
+            let filtered = diaries;
+            if (diaryCatFilterRule !== 'All') {
+                filtered = diaries.filter(d => d.category === diaryCatFilterRule);
+            }
+
+            // 步行距離排序與日期排序
+            if (diarySortRule === 'date-desc') {
+                filtered.sort((a,b) => new Date(b.date.replace(/\//g, '-')) - new Date(a.date.replace(/\//g, '-')));
+            } else if (diarySortRule === 'date-asc') {
+                filtered.sort((a,b) => new Date(a.date.replace(/\//g, '-')) - new Date(b.date.replace(/\//g, '-')));
+            } else if (diarySortRule === 'dist-desc') {
+                filtered.sort((a,b) => (b.distance || 0) - (a.distance || 0));
+            } else if (diarySortRule === 'dist-asc') {
+                filtered.sort((a,b) => (a.distance || 0) - (b.distance || 0));
+            }
+
+            const totalItems = filtered.length;
+            const totalPages = Math.ceil(totalItems / diaryPageSize);
+            if (diaryCurrentPage > totalPages) diaryCurrentPage = Math.max(1, totalPages);
+
+            const startIdx = (diaryCurrentPage - 1) * diaryPageSize;
+            const pageItems = filtered.slice(startIdx, startIdx + diaryPageSize);
+
+            if (pageItems.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-600 text-xs tracking-wider">目前尚未有任何符合該條件的日記檔案。</div>`;
+                document.getElementById('diary-pagination').innerHTML = '';
+                return;
+            }
+
+            pageItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-950/60 border border-slate-900/60 hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between cursor-pointer group relative sharp-edge shadow-lg";
+                card.onclick = () => openDiaryReader(item);
+
+                const resolvedImg = resolveImgurUrl(item.image) || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=400&q=80';
+
+                const editLayer = `
+                    <div class="admin-only ${isEditing ? '' : 'hidden'} absolute top-3 right-3 z-10 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button onclick="event.stopPropagation(); editArticle(event, '${item.id}', '探索日誌')" class="bg-slate-900 border border-slate-850 text-emerald-400 p-1 hover:bg-slate-800"><i class="fa-regular fa-edit"></i></button>
+                        <button onclick="event.stopPropagation(); deleteArticle(event, '${item.id}', '探索日誌')" class="bg-slate-900 border border-slate-850 text-red-500 p-1 hover:bg-slate-800"><i class="fa-regular fa-trash-can"></i></button>
+                    </div>
+                `;
+
+                card.innerHTML = `
+                    ${editLayer}
+                    <div>
+                        <div class="bg-slate-950 overflow-hidden relative border-b border-slate-900 sharp-edge">
+                            <img src="${resolvedImg}" alt="${item.title}" class="w-full ratio-3-2 transition-all duration-500 group-hover:scale-105 group-hover:opacity-90 sharp-edge" onerror="this.src='https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=400&q=80'">
+                        </div>
+                        <div class="p-5 space-y-2">
+                            <span class="text-[9px] px-2 py-0.5 border border-slate-800 text-emerald-400 w-max font-bold tracking-wide"># ${item.category}</span>
+                            <h3 class="font-extrabold text-white text-base group-hover:text-emerald-400 transition-colors leading-snug line-clamp-1">${item.title}</h3>
+                            <p class="text-slate-400 text-xs leading-relaxed line-clamp-3 font-light">${item.content}</p>
+                        </div>
+                    </div>
+                    <div class="px-5 py-3.5 border-t border-slate-900/60 bg-slate-950/20 flex justify-between items-center text-[10px] text-slate-500 mono-font">
+                        <span><i class="fa-regular fa-calendar-check mr-1 text-emerald-500/80"></i> ${item.date}</span>
+                        <span><i class="fa-solid fa-route mr-1 text-emerald-500/80"></i> ${item.distance || '---'} KM</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            renderDiaryPaginationUI(totalPages);
+        }
+
+        function renderDiaryPaginationUI(totalPages) {
+            const container = document.getElementById('diary-pagination');
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const prev = document.createElement('button');
+            prev.className = `px-3 py-1 bg-slate-950 border border-slate-900 text-xs sharp-edge ${diaryCurrentPage === 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-900 hover:text-white'}`;
+            prev.innerHTML = `<i class="fa-solid fa-chevron-left"></i>`;
+            prev.disabled = diaryCurrentPage === 1;
+            prev.onclick = () => { if (diaryCurrentPage > 1) { diaryCurrentPage--; renderDiaries(); } };
+            container.appendChild(prev);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-1 border text-xs font-bold sharp-edge ${diaryCurrentPage === i ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-950 border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white'}`;
+                btn.textContent = i;
+                btn.onclick = () => { diaryCurrentPage = i; renderDiaries(); };
+                container.appendChild(btn);
+            }
+
+            const next = document.createElement('button');
+            next.className = `px-3 py-1 bg-slate-950 border border-slate-900 text-xs sharp-edge ${diaryCurrentPage === totalPages ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-900 hover:text-white'}`;
+            next.innerHTML = `<i class="fa-solid fa-chevron-right"></i>`;
+            next.disabled = diaryCurrentPage === totalPages;
+            next.onclick = () => { if (diaryCurrentPage < totalPages) { diaryCurrentPage++; renderDiaries(); } };
+            container.appendChild(next);
+        }
+
+        // ------------------ 外遊篇核心 ------------------
+        function changeTravelFilter() {
+            travelSortRule = document.getElementById('travel-sort').value;
+            renderTravels();
+        }
+
+        function renderTravels() {
+            const grid = document.getElementById('travel-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            let filtered = [...travels];
+
+            if (travelSortRule === 'date-desc') {
+                filtered.sort((a,b) => new Date(b.date.replace(/\//g, '-')) - new Date(a.date.replace(/\//g, '-')));
+            } else if (travelSortRule === 'date-asc') {
+                filtered.sort((a,b) => new Date(a.date.replace(/\//g, '-')) - new Date(b.date.replace(/\//g, '-')));
+            }
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-600 text-xs tracking-wider">目前尚未有任何外遊日誌檔案。</div>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-950/60 border border-slate-900/60 hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between cursor-pointer group relative sharp-edge shadow-lg";
+                card.onclick = () => openDiaryReader(item);
+
+                const resolvedImg = resolveImgUrlHTML(item.image);
+
+                const editLayer = `
+                    <div class="admin-only ${isEditing ? '' : 'hidden'} absolute top-3 right-3 z-10 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button onclick="event.stopPropagation(); editArticle(event, '${item.id}', '外遊篇')" class="bg-slate-900 border border-slate-850 text-emerald-400 p-1 hover:bg-slate-800"><i class="fa-regular fa-edit"></i></button>
+                        <button onclick="event.stopPropagation(); deleteArticle(event, '${item.id}', '外遊篇')" class="bg-slate-900 border border-slate-850 text-red-500 p-1 hover:bg-slate-800"><i class="fa-regular fa-trash-can"></i></button>
+                    </div>
+                `;
+
+                card.innerHTML = `
+                    ${editLayer}
+                    <div>
+                        <div class="bg-slate-950 overflow-hidden relative border-b border-slate-900 sharp-edge">
+                            <img src="${resolvedImg}" alt="${item.title}" class="w-full ratio-3-2 transition-all duration-500 group-hover:scale-105 group-hover:opacity-90 sharp-edge" onerror="this.src='https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=400&q=80'">
+                        </div>
+                        <div class="p-5 space-y-2">
+                            <span class="text-[9px] px-2 py-0.5 border border-slate-800 text-emerald-400 w-max font-bold tracking-wide"># ${item.category}</span>
+                            <h3 class="font-extrabold text-white text-base group-hover:text-emerald-400 transition-colors leading-snug line-clamp-1">${item.title}</h3>
+                            <p class="text-slate-400 text-xs leading-relaxed line-clamp-3 font-light">${item.content}</p>
+                        </div>
+                    </div>
+                    <div class="px-5 py-3.5 border-t border-slate-900/60 bg-slate-950/20 flex justify-between items-center text-[10px] text-slate-500 mono-font">
+                        <span><i class="fa-regular fa-calendar-check mr-1 text-emerald-500/80"></i> ${item.date}</span>
+                        <span><i class="fa-solid fa-globe mr-1 text-emerald-500/80"></i> ${item.distance || '---'} KM</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // ------------------ 「隨筆」分頁核心 ------------------
+        function renderOthers() {
+            const grid = document.getElementById('other-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            let sorted = [...others].sort((a,b) => new Date(b.date ? b.date.replace(/\//g, '-') : 0) - new Date(a.date ? a.date.replace(/\//g, '-') : 0));
+
+            if (sorted.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-600 text-xs tracking-wider">目前尚未有任何隨筆檔案。</div>`;
+                return;
+            }
+
+            sorted.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-950/60 border border-slate-900/60 hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between cursor-pointer group relative sharp-edge shadow-lg";
+                card.onclick = () => openDiaryReader(item);
+
+                const resolvedImg = resolveImgUrlHTML(item.image);
+
+                const editLayer = `
+                    <div class="admin-only ${isEditing ? '' : 'hidden'} absolute top-3 right-3 z-10 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button onclick="event.stopPropagation(); editArticle(event, '${item.id}', '隨筆')" class="bg-slate-900 border border-slate-850 text-emerald-400 p-1 hover:bg-slate-800"><i class="fa-regular fa-edit"></i></button>
+                        <button onclick="event.stopPropagation(); deleteArticle(event, '${item.id}', '隨筆')" class="bg-slate-900 border border-slate-850 text-red-500 p-1 hover:bg-slate-800"><i class="fa-regular fa-trash-can"></i></button>
+                    </div>
+                `;
+
+                card.innerHTML = `
+                    ${editLayer}
+                    <div>
+                        <div class="bg-slate-950 overflow-hidden relative border-b border-slate-900 sharp-edge">
+                            <img src="${resolvedImg}" alt="${item.title}" class="w-full ratio-3-2 transition-all duration-500 group-hover:scale-105 group-hover:opacity-90 sharp-edge" onerror="this.src='https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&w=400&q=80'">
+                        </div>
+                        <div class="p-5 space-y-2">
+                            <h3 class="font-extrabold text-white text-base group-hover:text-emerald-400 transition-colors leading-snug line-clamp-1">${item.title}</h3>
+                            <p class="text-slate-400 text-xs leading-relaxed line-clamp-3 font-light">${item.content}</p>
+                        </div>
+                    </div>
+                    <div class="px-5 py-3 border-t border-slate-900/60 bg-slate-950/20 text-[10px] text-slate-500 flex justify-between items-center font-sans">
+                        <span>隨筆記實</span>
+                        <span><i class="fa-regular fa-calendar-check mr-1 text-emerald-500/80"></i> ${item.date || '---'}</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // ------------------ 探索專題 ------------------
+        function renderExploreThemeSelector() {
+            const bar = document.getElementById('explore-theme-selector-bar');
+            bar.innerHTML = '';
+
+            exploreThemes.forEach(theme => {
+                const btn = document.createElement('button');
+                btn.className = `px-4 py-1.5 border text-xs font-bold uppercase tracking-[0.1em] sharp-edge transition-all duration-300 ${
+                    activeExploreTheme === theme ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-950 border-slate-900 text-slate-500 hover:text-slate-300 hover:border-slate-800'
+                }`;
+                btn.textContent = theme;
+                btn.onclick = () => {
+                    activeExploreTheme = theme;
+                    renderExploreThemeSelector();
+                    renderExploreTab();
+                };
+                bar.appendChild(btn);
+            });
+        }
+
+        function renderExploreTab() {
+            const grid = document.getElementById('explore-grid');
+            grid.innerHTML = '';
+
+            const filtered = explores.filter(e => e.category === activeExploreTheme);
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-600 text-xs tracking-wider">目前在此主題下尚未發佈任何探索篇章。</div>`;
+                return;
+            }
+
+            filtered.sort((a,b) => new Date(b.date.replace(/\//g, '-')) - new Date(a.date.replace(/\//g, '-')));
+
+            filtered.forEach(item => {
+                const box = document.createElement('div');
+                box.className = "bg-slate-950/60 border border-slate-900/60 p-6 md:p-8 flex flex-col md:flex-row hover:border-emerald-500/40 transition-all duration-500 relative group cursor-pointer sharp-edge gap-6 shadow-xl";
+                box.onclick = () => openDiaryReader(item);
+
+                const resolvedImg = resolveImgUrlHTML(item.image) || 'https://images.unsplash.com/photo-1590073844006-33379778ae09?auto=format&fit=crop&w=400&q=80';
+
+                const editLayer = `
+                    <div class="admin-only ${isEditing ? '' : 'hidden'} absolute top-3 right-3 z-10 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button onclick="event.stopPropagation(); editArticle(event, '${item.id}', '探索')" class="bg-slate-900 border border-slate-850 text-emerald-400 p-1.5 hover:bg-slate-800"><i class="fa-regular fa-edit"></i></button>
+                        <button onclick="event.stopPropagation(); deleteArticle(event, '${item.id}', '探索')" class="bg-slate-900 border border-slate-850 text-red-500 p-1.5 hover:bg-slate-800"><i class="fa-regular fa-trash-can"></i></button>
+                    </div>
+                `;
+
+                box.innerHTML = `
+                    ${editLayer}
+                    <div class="md:w-2/5 aspect-[3/2] relative bg-slate-950 border border-slate-900 flex-shrink-0 sharp-edge overflow-hidden">
+                        <img src="${resolvedImg}" alt="${item.title}" class="w-full h-full object-cover sharp-edge transition-transform duration-700 group-hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1590073844006-33379778ae09?auto=format&fit=crop&w=400&q=80'">
+                        <span class="absolute top-3 left-3 bg-emerald-600 text-white text-[8px] tracking-wider font-black uppercase px-2 py-0.5 sharp-edge mono-font">${item.category}</span>
+                    </div>
+                    <div class="md:w-3/5 flex flex-col justify-between space-y-4">
+                        <div class="space-y-2.5">
+                            <h3 class="font-black text-white text-lg leading-snug group-hover:text-emerald-400 transition-colors line-clamp-1">${item.title}</h3>
+                            <div class="w-6 h-[1.5px] bg-emerald-500/50"></div>
+                            <p class="text-slate-400 text-xs leading-relaxed line-clamp-3 font-light">${item.content}</p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-900/60 flex justify-end items-center text-[10px] text-slate-500 uppercase tracking-widest mono-font">
+                            <span class="text-emerald-400 font-bold hover:underline">READ SPEC REPORT <i class="fa-solid fa-chevron-right text-[8px] ml-1"></i></span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(box);
+            });
+        }
+
+        // ------------------ 深度故事段落編輯 ------------------
+        function addNewArticleSection(title = "", text = "", image = "") {
+            const container = document.getElementById('art-sections-container');
+            const secId = "sec-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4);
+
+            const div = document.createElement('div');
+            div.id = secId;
+            div.className = "bg-slate-950 border border-slate-900 p-4 space-y-3 relative sharp-edge";
+
+            div.innerHTML = `
+                <button type="button" onclick="removeArticleSection('${secId}')" class="absolute top-2 right-2 text-red-500 hover:text-red-400 text-xs"><i class="fa-solid fa-xmark text-sm"></i></button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <span class="text-[10px] text-slate-500 block mb-1">小段落/主題標題</span>
+                        <input type="text" value="${title}" placeholder="如：背景介紹" class="sec-title w-full bg-slate-900 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge focus:outline-none">
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 block mb-1">插圖網址 (支援 Imgur)</span>
+                        <input type="url" value="${image}" placeholder="貼上照片或 Imgur 網址" class="sec-image w-full bg-slate-900 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <span class="text-[10px] text-slate-500 block mb-1">描述敘述</span>
+                    <textarea rows="4" placeholder="詳細介紹這部分內容..." class="sec-text w-full bg-slate-900 border border-slate-850 px-3 py-1.5 text-xs text-white sharp-edge focus:outline-none">${text}</textarea>
+                </div>
+            `;
+
+            container.appendChild(div);
+        }
+
+        function removeArticleSection(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function loadExploreStandardTemplate() {
+            const container = document.getElementById('art-sections-container');
+            container.innerHTML = '';
+
+            const templates = [
+                { title: "地理及歷史背景", text: "請在此編寫本探秘遺骸/地點的地理起源及背景調研..." },
+                { title: "昔日輝煌面貌", text: "該遺址在早期、建營或興建全盛時期的史實記錄..." },
+                { title: "沒落與廢棄命運", text: "隨著歷史時代遷移、被逐漸裁撤或荒廢的具體原因..." },
+                { title: "現荒蕪遺蹟現狀", text: "目前遺留現場的實拍記錄、探險情況及環境風貌..." },
+                { title: "結語與反思", text: "對此歷史遺跡存廢或野外保育的綜合思考與備忘..." }
+            ];
+
+            templates.forEach(t => {
+                addNewArticleSection(t.title, t.text, "");
+            });
+            showToast("📋 已成功載入高質感紀實段落結構模板！");
+        }
+
+        function openArticleEditor(type, id = null) {
+            if (!isEditing) return;
+
+            document.getElementById('editor-article-id').value = id || '';
+            document.getElementById('editor-article-type').value = type;
+
+            const select = document.getElementById('art-category');
+            select.innerHTML = '';
+
+            let categories = exploreThemes;
+            if (type === '外遊篇') {
+                categories = ["海外旅居", "極地探險", "異國歷史", "世界廢墟", "其他外遊"];
+            }
+
+            categories.forEach(theme => {
+                const opt = document.createElement('option');
+                opt.value = theme;
+                opt.textContent = theme;
+                select.appendChild(opt);
+            });
+
+            const metaFields = document.getElementById('art-meta-fields');
+            const categoryField = document.getElementById('art-category-field');
+            const distanceField = document.getElementById('art-distance-field');
+
+            if (type === '探索') {
+                metaFields.classList.add('hidden');
+                categoryField.classList.remove('hidden');
+            } else if (type === '隨筆') {
+                metaFields.classList.remove('hidden');
+                categoryField.classList.add('hidden');
+                distanceField.classList.add('hidden');
+            } else {
+                metaFields.classList.remove('hidden');
+                categoryField.classList.remove('hidden');
+                distanceField.classList.remove('hidden');
+            }
+
+            document.getElementById('art-sections-container').innerHTML = '';
+
+            if (id) {
+                let list = diaries;
+                if (type === '探索') list = explores;
+                if (type === '外遊篇') list = travels;
+                if (type === '隨筆') list = others;
+
+                const art = list.find(x => x.id === id);
+                if (art) {
+                    document.getElementById('article-editor-title').textContent = `修改 [${art.title}] 文章`;
+                    document.getElementById('art-title').value = art.title;
+                    if (type !== '隨筆') {
+                        document.getElementById('art-category').value = art.category;
+                    }
+                    document.getElementById('art-image').value = art.image || '';
+                    document.getElementById('art-content').value = art.content;
+
+                    if (type !== '探索') {
+                        document.getElementById('art-date').value = art.date || '';
+                        if (type !== '隨筆') {
+                            document.getElementById('art-distance').value = art.distance || '';
+                        }
+                    }
+
+                    if (art.sections && Array.isArray(art.sections)) {
+                        art.sections.forEach(sec => {
+                            addNewArticleSection(sec.title, sec.text, sec.image);
+                        });
+                    }
+                }
+            } else {
+                document.getElementById('article-editor-title').textContent = `發佈全新 [${type}]`;
+                document.getElementById('art-title').value = '';
+                document.getElementById('art-image').value = '';
+                document.getElementById('art-content').value = '';
+
+                if (type !== '探索') {
+                    document.getElementById('art-date').value = '2026/06/11';
+                    if (type !== '隨筆') {
+                        document.getElementById('art-distance').value = '';
+                    }
+                }
+
+                addNewArticleSection("起步背景", "詳細描述背景與考察資訊...", "");
+                addNewArticleSection("實地考察", "目前現場留存的細節及環境風貌...", "");
+            }
+
+            document.getElementById('article-editor-modal').classList.remove('hidden');
+        }
+
+        function closeArticleEditor() {
+            document.getElementById('article-editor-modal').classList.add('hidden');
+        }
+
+        function saveArticle(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('editor-article-id').value;
+            const type = document.getElementById('editor-article-type').value;
+
+            const title = document.getElementById('art-title').value.trim();
+            const category = type === '隨筆' ? '隨筆' : document.getElementById('art-category').value;
+            const image = resolveImgUrlHTML(document.getElementById('art-image').value.trim());
+            const content = document.getElementById('art-content').value.trim();
+
+            let date = '';
+            let distance = null;
+            if (type !== '探索') {
+                date = document.getElementById('art-date').value.trim();
+                if (type !== '隨筆') {
+                    distance = parseFloat(document.getElementById('art-distance').value) || 0;
+                }
+            } else {
+                date = '2026/06/11';
+            }
+
+            const sections = [];
+            const container = document.getElementById('art-sections-container');
+            const items = container.querySelectorAll(':scope > div');
+
+            items.forEach(item => {
+                const secTitle = item.querySelector('.sec-title').value.trim();
+                const secImage = resolveImgUrlHTML(item.querySelector('.sec-image').value.trim());
+                const secText = item.querySelector('.sec-text').value.trim();
+                if (secTitle || secText) {
+                    sections.push({ title: secTitle, image: secImage, text: secText });
+                }
+            });
+
+            const payload = {
+                id: id || (type === '探索日誌' ? 'log-' + Date.now() : (type === '外遊篇' ? 'tr-' + Date.now() : (type === '隨筆' ? 'oth-' + Date.now() : 'exp-' + Date.now()))),
+                type,
+                title,
+                category,
+                date,
+                distance,
+                image,
+                content,
+                sections
+            };
+
+            if (type === '探索') {
+                if (id) {
+                    const idx = explores.findIndex(x => x.id === id);
+                    if (idx !== -1) explores[idx] = payload;
+                } else {
+                    explores.push(payload);
+                }
+                localStorage.setItem('sky_explores_v3', JSON.stringify(explores));
+                renderExploreTab();
+            } else if (type === '外遊篇') {
+                if (id) {
+                    const idx = travels.findIndex(x => x.id === id);
+                    if (idx !== -1) travels[idx] = payload;
+                } else {
+                    travels.push(payload);
+                }
+                localStorage.setItem('sky_travels_v3', JSON.stringify(travels));
+                renderTravels();
+            } else if (type === '隨筆') {
+                if (id) {
+                    const idx = others.findIndex(x => x.id === id);
+                    if (idx !== -1) others[idx] = payload;
+                } else {
+                    others.push(payload);
+                }
+                localStorage.setItem('sky_others_v3', JSON.stringify(others));
+                renderOthers();
+            } else {
+                if (id) {
+                    const idx = diaries.findIndex(x => x.id === id);
+                    if (idx !== -1) diaries[idx] = payload;
+                } else {
+                    diaries.push(payload);
+                }
+                localStorage.setItem('sky_diaries_v3', JSON.stringify(diaries));
+                renderDiaries();
+            }
+
+            closeArticleEditor();
+            showToast("✨ 特輯文章檔案已成功同步保存！");
+        }
+
+        function editArticle(e, id, type) {
+            e.stopPropagation();
+            openArticleEditor(type, id);
+        }
+
+        function deleteArticle(e, id, type) {
+            e.stopPropagation();
+            if (confirm("確定要永久移除這篇檔案嗎？")) {
+                if (type === '探索') {
+                    explores = explores.filter(x => x.id !== id);
+                    localStorage.setItem('sky_explores_v3', JSON.stringify(explores));
+                    renderExploreTab();
+                } else if (type === '外遊篇') {
+                    travels = travels.filter(x => x.id !== id);
+                    localStorage.setItem('sky_travels_v3', JSON.stringify(travels));
+                    renderTravels();
+                } else if (type === '隨筆') {
+                    others = others.filter(x => x.id !== id);
+                    localStorage.setItem('sky_others_v3', JSON.stringify(others));
+                    renderOthers();
+                } else {
+                    diaries = diaries.filter(x => x.id !== id);
+                    localStorage.setItem('sky_diaries_v3', JSON.stringify(diaries));
+                    renderDiaries();
+                }
+                showToast("🗑️ 檔案已永久移除");
+            }
+        }
+
+        // ------------------ 深度閱讀 ------------------
+        function openDiaryReader(item) {
+            document.getElementById('reader-badge').textContent = item.category || '隨筆';
+            document.getElementById('reader-title').textContent = item.title;
+
+            const dateContainer = document.getElementById('reader-date-container');
+            const distContainer = document.getElementById('reader-distance-container');
+
+            // 如果是「探索」或「隨筆」，隱藏對應中繼數據
+            if (item.type === '探索') {
+                dateContainer.classList.add('hidden');
+                distContainer.classList.add('hidden');
+            } else if (item.type === '隨筆') {
+                dateContainer.classList.remove('hidden');
+                document.getElementById('reader-date').textContent = item.date || '未知';
+                distContainer.classList.add('hidden');
+            } else {
+                dateContainer.classList.remove('hidden');
+                distContainer.classList.remove('hidden');
+                document.getElementById('reader-date').textContent = item.date || '未知';
+                document.getElementById('reader-distance').textContent = item.distance || '---';
+            }
+
+            const mainImg = resolveImgurUrl(item.image) || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80';
+            document.getElementById('reader-main-img').src = mainImg;
+            document.getElementById('reader-main-img').onerror = function() {
+                this.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80';
+            };
+
+            document.getElementById('reader-main-text').textContent = item.content;
+
+            const editBtn = document.getElementById('reader-edit-btn');
+            if (isEditing) {
+                editBtn.classList.remove('hidden');
+                editBtn.onclick = () => {
+                    closeDiaryReader();
+                    openArticleEditor(item.type, item.id);
+                };
+            } else {
+                editBtn.classList.add('hidden');
+            }
+
+            const secContainer = document.getElementById('reader-sections');
+            secContainer.innerHTML = '';
+
+            if (item.sections && item.sections.length > 0) {
+                item.sections.forEach(sec => {
+                    const block = document.createElement('div');
+                    block.className = "space-y-4";
+
+                    let imgHTML = '';
+                    if (sec.image) {
+                        const resolvedSecImg = resolveImgurUrl(sec.image);
+                        imgHTML = `
+                            <div class="w-full border border-slate-900 bg-slate-950 sharp-edge overflow-hidden">
+                                <img src="${resolvedSecImg}" alt="${sec.title}" class="w-full ratio-3-2 shadow-2xl sharp-edge" onerror="this.src='https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=400&q=80'">
+                            </div>
+                        `;
+                    }
+
+                    block.innerHTML = `
+                        <h3 class="text-lg md:text-xl font-black text-white border-l-2 border-emerald-500 pl-3 leading-snug" style="border-left-color: var(--theme-color);">${sec.title}</h3>
+                        ${imgHTML}
+                        <p class="text-slate-300 text-xs md:text-sm leading-relaxed whitespace-pre-wrap font-light font-sans">${sec.text}</p>
+                    `;
+                    secContainer.appendChild(block);
+                });
+            }
+
+            document.getElementById('diary-reader-modal').classList.remove('hidden');
+            document.getElementById('diary-reader-modal').scrollTop = 0;
+        }
+
+        function closeDiaryReader() {
+            document.getElementById('diary-reader-modal').classList.add('hidden');
+        }
+
+        // ------------------ 照片集 ------------------
+        function renderGallery() {
+            const grid = document.getElementById('gallery-grid');
+            grid.innerHTML = '';
+
+            gallery.forEach(photo => {
+                const el = document.createElement('div');
+                el.className = "bg-slate-950 border border-slate-900 overflow-hidden shadow-lg cursor-zoom-in group relative sharp-edge aspect-[3/2]";
+                el.onclick = () => openPhotoZoom(photo);
+
+                const resolvedUrl = resolveImgurUrl(photo.url);
+
+                el.innerHTML = `
+                    <img src="${resolvedUrl}" alt="${photo.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 sharp-edge" onerror="this.src='https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
+                        <span class="text-[8px] tracking-wider bg-emerald-600 text-white w-max px-1.5 py-0.5 font-bold mb-1 sharp-edge mono-font">${photo.category}</span>
+                        <h4 class="text-white text-xs font-bold truncate tracking-wide">${photo.title}</h4>
+                    </div>
+                `;
+                grid.appendChild(el);
+            });
+        }
+
+        function openGalleryUploadModal() {
+            if (!isEditing) return;
+            document.getElementById('gal-title').value = '';
+            document.getElementById('gal-url').value = '';
+            document.getElementById('gallery-upload-modal').classList.remove('hidden');
+        }
+
+        function closeGalleryUploadModal() {
+            document.getElementById('gallery-upload-modal').classList.add('hidden');
+        }
+
+        function handleGalleryUpload(e) {
+            e.preventDefault();
+            const title = document.getElementById('gal-title').value.trim();
+            const category = document.getElementById('gal-category').value;
+            const url = resolveImgurUrl(document.getElementById('gal-url').value.trim());
+
+            const payload = { id: 'img-' + Date.now(), title, category, url };
+            gallery.push(payload);
+            localStorage.setItem('sky_gallery_v3', JSON.stringify(gallery));
+            
+            renderGallery();
+            closeGalleryUploadModal();
+            showToast("📸 新相片已加入電子相冊庫！");
+        }
+
+        function openPhotoZoom(photo) {
+            const resolvedImg = resolveImgurUrl(photo.url);
+            document.getElementById('zoom-photo-img').src = resolvedImg;
+            document.getElementById('zoom-photo-title').textContent = photo.title;
+            document.getElementById('zoom-photo-category').textContent = photo.category;
+
+            const delBtn = document.getElementById('zoom-photo-del-btn');
+            if (isEditing) {
+                delBtn.classList.remove('hidden');
+                delBtn.onclick = () => {
+                    if (confirm("確定移除這張相片嗎？")) {
+                        gallery = gallery.filter(g => g.id !== photo.id);
+                        localStorage.setItem('sky_gallery_v3', JSON.stringify(gallery));
+                        renderGallery();
+                        closePhotoZoomModal();
+                        showToast("🗑  相片已移除");
+                    }
+                };
+            } else {
+                delBtn.classList.add('hidden');
+            }
+
+            document.getElementById('photo-zoom-modal').classList.remove('hidden');
+        }
+
+        function closePhotoZoomModal() {
+            document.getElementById('photo-zoom-modal').classList.add('hidden');
+        }
+
+        function startSlideshow() {
+            if (gallery.length === 0) {
+                alert("相簿中沒有相片可放映！");
+                return;
+            }
+            slideshowIndex = Math.floor(Math.random() * gallery.length);
+            updateSlideshowFrame();
+            document.getElementById('slideshow-modal').classList.remove('hidden');
+
+            slideshowIsPlaying = true;
+            document.getElementById('slideshow-play-pause').innerHTML = '<i class="fa-solid fa-pause"></i>';
+
+            slideshowInterval = setInterval(() => {
+                nextSlideshow();
+            }, 4000);
+        }
+
+        function stopSlideshow() {
+            clearInterval(slideshowInterval);
+            slideshowIsPlaying = false;
+            document.getElementById('slideshow-modal').classList.add('hidden');
+            if (document.fullscreenElement) document.exitFullscreen();
+        }
+
+        function updateSlideshowFrame() {
+            const photo = gallery[slideshowIndex];
+            const img = document.getElementById('slideshow-img');
+            img.style.opacity = 0;
+            setTimeout(() => {
+                img.src = resolveImgurUrl(photo.url);
+                img.onerror = function() {
+                    this.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80';
+                };
+                document.getElementById('slideshow-title').textContent = photo.title;
+                document.getElementById('slideshow-tag').textContent = photo.category;
+                img.style.opacity = 1;
+            }, 200);
+        }
+
+        function nextSlideshow() {
+            slideshowIndex = Math.floor(Math.random() * gallery.length);
+            updateSlideshowFrame();
+        }
+
+        function prevSlideshow() {
+            slideshowIndex = (slideshowIndex - 1 + gallery.length) % gallery.length;
+            updateSlideshowFrame();
+        }
+
+        // 播放控制
+        function toggleSlideshowPlay() {
+            const btn = document.getElementById('slideshow-play-pause');
+            if (slideshowIsPlaying) {
+                clearInterval(slideshowInterval);
+                slideshowIsPlaying = false;
+                btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            } else {
+                slideshowIsPlaying = true;
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                slideshowInterval = setInterval(() => {
+                    nextSlideshow();
+                }, 4000);
+            }
+        }
+
+        // 全螢幕播放
+        function toggleSlideshowFullscreen() {
+            const box = document.getElementById('slideshow-box');
+            if (!document.fullscreenElement) {
+                box.requestFullscreen().catch(err => {
+                    alert(`無法啟用全螢幕： ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // ------------------ Kill Bill地圖測地標高柱核心 ------------------
+        function initMapSystem() {
+            mapObj = L.map('map', {
+                center: [22.3193, 114.1694],
+                zoom: 11,
+                maxZoom: 18,
+                minZoom: 10
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(mapObj);
+
+            mapObj.on('click', function(e) {
+                if (!isEditing) return;
+                
+                L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(`<div class="text-xs p-1 text-slate-100">
+                        <strong>地圖座標定位：</strong><br>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}<br>
+                        <button onclick="openKillBillEditor(${e.latlng.lat}, ${e.latlng.lng})" class="mt-2 bg-emerald-600 text-white px-2.5 py-1 font-bold text-[10px] sharp-edge">在此登錄標高柱點</button>
+                    </div>`)
+                    .openOn(mapObj);
+            });
+        }
+
+        function renderMapAndLists() {
+            if (!mapObj) return;
+
+            mapMarkers.forEach(m => mapObj.removeLayer(m));
+            mapMarkers = [];
+
+            const filterVal = document.getElementById('map-type-filter').value;
+            const filteredKB = filterVal === 'All'
+                ? killbills
+                : killbills.filter(k => k.type === filterVal);
+
+            filteredKB.forEach(kb => {
+                const customIcon = L.divIcon({
+                    html: `<div class="${getKBMarkerColor(kb.type)} text-slate-950 w-7 h-7 border border-slate-100 flex items-center justify-center shadow-lg hover:scale-110 transform transition sharp-edge"><i class="fa-solid fa-location-crosshairs text-[10px]"></i></div>`,
+                    className: 'kb-marker',
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 28]
+                });
+
+                const marker = L.marker([kb.lat, kb.lng], { icon: customIcon }).addTo(mapObj);
+
+                const resolvedImg = resolveImgurUrl(kb.image);
+
+                const popupHTML = `
+                    <div class="p-1 max-w-[220px] text-slate-200 text-xs">
+                        ${resolvedImg ? `<img src="${resolvedImg}" class="w-full h-24 object-cover mb-2 ratio-3-2 sharp-edge shadow-lg">` : ''}
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] px-1.5 py-0.5 bg-slate-800 text-emerald-400 font-bold sharp-edge">${kb.type}</span>
+                            <span class="text-[9px] text-slate-400 font-bold">No. ${kb.code || '未知'}</span>
+                        </div>
+                        <h4 class="font-extrabold text-sm text-white mt-1.5">${kb.name}</h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-regular fa-calendar-check mr-1"></i> ${kb.date}</p>
+                        ${kb.notes ? `<p class="text-[11px] text-slate-300 mt-2 bg-slate-950/60 p-1.5 border border-slate-800 sharp-edge">${kb.notes}</p>` : ''}
+                    </div>
+                `;
+
+                marker.bindPopup(popupHTML);
+                mapMarkers.push(marker);
+            });
+
+            // 列表渲染
+            const tbody = document.getElementById('killbill-table-body');
+            tbody.innerHTML = '';
+            document.getElementById('kb-count').textContent = filteredKB.length;
+
+            if (filteredKB.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-600">無任何符合種類的標高柱。</td></tr>`;
+                return;
+            }
+
+            const sortedKB = [...filteredKB].sort((a,b) => new Date(b.date.replace(/\//g, '-')) - new Date(a.date.replace(/\//g, '-')));
+
+            sortedKB.forEach(kb => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-900/50 hover:bg-slate-950/40 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-slate-300 font-mono">${kb.code || '---'}</td>
+                    <td class="p-3 font-bold text-white cursor-pointer hover:text-emerald-400 transition-colors" onclick="locateKBOnMap(${kb.lat}, ${kb.lng})">${kb.name}</td>
+                    <td class="p-3 text-slate-400"><span class="px-2 py-0.5 text-[10px] font-bold bg-slate-950 ${getKBBadgeStyle(kb.type)}">${kb.type}</span></td>
+                    <td class="p-3 text-slate-500 mono-font">${kb.date}</td>
+                    <td class="p-3 text-right">
+                        <div class="flex justify-end space-x-1.5">
+                            <button onclick="locateKBOnMap(${kb.lat}, ${kb.lng})" class="text-emerald-400 hover:text-emerald-300 px-1 py-0.5 transition-colors"><i class="fa-solid fa-street-view text-sm"></i></button>
+                            <button onclick="editKillBill('${kb.id}')" class="admin-only ${isEditing ? '' : 'hidden'} text-slate-400 hover:text-white px-1 py-0.5 transition-colors"><i class="fa-regular fa-edit"></i></button>
+                            <button onclick="deleteKillBill('${kb.id}')" class="admin-only ${isEditing ? '' : 'hidden'} text-red-500 hover:text-red-400 px-1 py-0.5 transition-colors"><i class="fa-regular fa-trash-can"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getKBMarkerColor(type) {
+            switch(type) {
+                case 'Type A': return 'bg-emerald-500';
+                case 'Type B': return 'bg-teal-500';
+                case '導線站': return 'bg-cyan-500';
+                case '舊款': return 'bg-amber-600';
+                default: return 'bg-slate-400';
+            }
+        }
+
+        function getKBBadgeStyle(type) {
+            switch(type) {
+                case 'Type A': return 'text-emerald-400';
+                case 'Type B': return 'text-teal-400';
+                case '導線站': return 'text-cyan-400';
+                case '舊款': return 'text-amber-400';
+                default: return 'text-slate-400';
+            }
+        }
+
+        // ------------------ 全站智能搜尋 ------------------
+        function triggerGlobalSearch() {
+            const val = document.getElementById('global-search').value.toLowerCase().trim();
+            const body = document.getElementById('search-results-body');
+            const modal = document.getElementById('search-results-modal');
+
+            if (!val) {
+                modal.classList.add('hidden');
+                return;
+            }
+
+            body.innerHTML = '';
+
+            const allItems = [
+                ...diaries.map(d => ({ ...d, tab: 'diary-tab', label: '日誌' })),
+                ...explores.map(e => ({ ...e, tab: 'explore-tab', label: '探索' })),
+                ...others.map(o => ({ ...o, tab: 'other-tab', label: '隨筆' })),
+                ...travels.map(t => ({ ...t, tab: 'travel-tab', label: '外遊篇' }))
+            ];
+
+            const matches = allItems.filter(x => 
+                x.title.toLowerCase().includes(val) ||
+                x.content.toLowerCase().includes(val) ||
+                (x.category && x.category.toLowerCase().includes(val))
+            );
+
+            if (matches.length === 0) {
+                body.innerHTML = `<div class="text-center py-12 text-slate-600 text-xs tracking-wider">找不到任何含有「${val}」的文章。</div>`;
+            } else {
+                matches.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = "bg-slate-900/50 p-4 border border-slate-900 hover:border-emerald-500/40 cursor-pointer transition-all duration-300 sharp-edge";
+                    el.onclick = () => {
+                        closeSearchModal();
+                        switchTab(item.tab);
+                        openDiaryReader(item);
+                    };
+
+                    el.innerHTML = `
+                        <div class="flex justify-between items-center text-[9px] text-slate-500 mb-1 font-mono">
+                            <span class="bg-slate-950 px-2 py-0.5 text-emerald-400 font-bold sharp-edge">${item.label} ‧ ${item.category || '隨筆'}</span>
+                            <span>${item.date || ''}</span>
+                        </div>
+                        <h4 class="text-white text-sm font-bold hover:text-emerald-400 transition-colors">${item.title}</h4>
+                        <p class="text-slate-400 text-xs mt-1.5 line-clamp-2 leading-relaxed font-light">${item.content}</p>
+                    `;
+                    body.appendChild(el);
+                });
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeSearchModal() {
+            document.getElementById('search-results-modal').classList.add('hidden');
+            document.getElementById('global-search').value = '';
+        }
+
+        // ------------------ 資料備份與恢復 ------------------
+        function exportData() {
+            const backup = {
+                sky_tabs: appTabs,
+                sky_theme: themeData,
+                sky_hero: heroData,
+                sky_home_blocks: homeBlocks,
+                sky_diaries: diaries,
+                sky_travels: travels,
+                sky_explores: explores,
+                sky_others: others,
+                sky_gallery: gallery,
+                sky_killbills: killbills
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+            const a = document.createElement('a');
+            a.setAttribute("href", dataStr);
+            a.setAttribute("download", `港跡_Skywalker_安全檔案備份.json`);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            showToast("💾 完整探險資料 JSON 備份檔案下載成功！");
+        }
+
+        function importData(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.sky_diaries && data.sky_killbills) {
+                        localStorage.setItem('sky_tabs_v3', JSON.stringify(data.sky_tabs || initialTabs));
+                        localStorage.setItem('sky_theme_v3', JSON.stringify(data.sky_theme || initialTheme));
+                        localStorage.setItem('sky_hero_v3', JSON.stringify(data.sky_hero || initialHero));
+                        localStorage.setItem('sky_home_blocks_v3', JSON.stringify(data.sky_home_blocks || initialHomeBlocks));
+                        localStorage.setItem('sky_diaries_v3', JSON.stringify(data.sky_diaries));
+                        localStorage.setItem('sky_travels_v3', JSON.stringify(data.sky_travels || []));
+                        localStorage.setItem('sky_explores_v3', JSON.stringify(data.sky_explores || []));
+                        localStorage.setItem('sky_others_v3', JSON.stringify(data.sky_others || []));
+                        localStorage.setItem('sky_gallery_v3', JSON.stringify(data.sky_gallery || []));
+                        localStorage.setItem('sky_killbills_v3', JSON.stringify(data.sky_killbills));
+
+                        loadFromStorage();
+                        applyThemeStyles();
+                        renderAllNavMenus();
+                        initHeroUI();
+                        renderHomeBlocks();
+                        renderDiaries();
+                        renderTravels();
+                        renderOthers();
+                        renderExploreThemeSelector();
+                        renderExploreTab();
+                        renderGallery();
+                        renderMapAndLists();
+                        renderCustomTabsAndBlocks();
+
+                        showToast("📥 資料庫備份還原成功！");
+                        switchTab('home-tab');
+                    } else {
+                        alert("備份檔案格式不正確！");
+                    }
+                } catch (err) {
+                    alert("讀取備份檔案出錯，請確認格式。");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.querySelector('span').textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+
+```
